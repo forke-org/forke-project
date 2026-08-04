@@ -12,8 +12,7 @@ if (!process.env.DATABASE_URL) {
 // This only changes connection management — schema, queries and table views
 // are completely unaffected.
 const connectionOptions: postgres.Options<{}> = {
-  max: 1,             // one connection per serverless instance; Supavisor multiplexes
-                      // for us, and Postgres only allows 60 connections in total
+  max: 10,            // max connections held by this client
   idle_timeout: 20,   // close idle connections after 20s (frees pooler slots)
   connect_timeout: 10, // fail fast if the pooler can't be reached in 10s
   prepare: false,      // required: transaction-mode pooling can't reuse prepared statements

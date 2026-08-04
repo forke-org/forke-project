@@ -9,33 +9,23 @@ import { revalidatePath } from 'next/cache'
  * Ensures the notifications table exists (creates it if missing via raw SQL).
  * Useful until a proper migration is run.
  */
-// Memoised per process: the DDL takes an ACCESS EXCLUSIVE lock even when it
-// no-ops, so running it per request serialises every caller behind it.
-let notificationsTableReady: Promise<void> | null = null
-
 export async function ensureNotificationsTable() {
-  if (!notificationsTableReady) {
-    notificationsTableReady = (async () => {
-      try {
-        await db.execute(sql`
-          CREATE TABLE IF NOT EXISTS "notifications" (
-            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-            "type" text NOT NULL,
-            "title" text NOT NULL,
-            "body" text NOT NULL,
-            "link" text,
-            "is_read" boolean DEFAULT false NOT NULL,
-            "created_at" timestamp DEFAULT now() NOT NULL
-          );
-        `)
-      } catch {
-        // Table may already exist — safe to ignore
-        notificationsTableReady = null // let a later call retry
-      }
-    })()
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "notifications" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "user_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "type" text NOT NULL,
+        "title" text NOT NULL,
+        "body" text NOT NULL,
+        "link" text,
+        "is_read" boolean DEFAULT false NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `)
+  } catch {
+    // Table may already exist — safe to ignore
   }
-  await notificationsTableReady
 }
 
 /** Fetch all notifications for a user, newest first */

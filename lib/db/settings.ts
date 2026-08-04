@@ -1,30 +1,18 @@
 import { db } from './index'
 import { sql } from 'drizzle-orm'
 
-// Memoised per process. CREATE TABLE IF NOT EXISTS still takes an ACCESS
-// EXCLUSIVE lock even when it no-ops, so running it on every request serialises
-// every caller behind that lock. The DDL is idempotent and the schema doesn't
-// change at runtime, so once per process is enough.
-let settingsTableReady: Promise<void> | null = null
-
 export async function ensureSettingsTable() {
-  if (!settingsTableReady) {
-    settingsTableReady = (async () => {
-      try {
-        await db.execute(sql`
-          CREATE TABLE IF NOT EXISTS "system_settings" (
-            "key" text PRIMARY KEY NOT NULL,
-            "value" text NOT NULL,
-            "updated_at" timestamp DEFAULT now() NOT NULL
-          );
-        `)
-      } catch (error) {
-        console.error('Failed to ensure system_settings table exists:', error)
-        settingsTableReady = null // let a later call retry
-      }
-    })()
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "system_settings" (
+        "key" text PRIMARY KEY NOT NULL,
+        "value" text NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL
+      );
+    `)
+  } catch (error) {
+    console.error('Failed to ensure system_settings table exists:', error)
   }
-  await settingsTableReady
 }
 
 export async function isWaitlistEnabled(): Promise<boolean> {

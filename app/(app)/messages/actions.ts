@@ -9,34 +9,24 @@ import { join } from 'path'
 import { encryptUrl, decryptUrl } from '@/lib/utils/encrypt'
 import { isR2Configured, uploadToR2 } from '@/lib/r2'
 
-// Memoised per process: the DDL takes an ACCESS EXCLUSIVE lock even when it
-// no-ops, so running it per request serialises every caller behind it.
-let messagesTableReady: Promise<void> | null = null
-
 export async function ensureMessagesTable() {
-  if (!messagesTableReady) {
-    messagesTableReady = (async () => {
-      try {
-        await db.execute(sql`
-          CREATE TABLE IF NOT EXISTS "messages" (
-            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            "sender_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-            "receiver_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-            "content" text NOT NULL,
-            "is_received" boolean DEFAULT false NOT NULL,
-            "is_seen" boolean DEFAULT false NOT NULL,
-            "file_url" text,
-            "file_name" text,
-            "created_at" timestamp DEFAULT now() NOT NULL
-          );
-        `)
-      } catch (error) {
-        console.error('Failed to ensure messages table exists:', error)
-        messagesTableReady = null // let a later call retry
-      }
-    })()
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "messages" (
+        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        "sender_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "receiver_id" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "content" text NOT NULL,
+        "is_received" boolean DEFAULT false NOT NULL,
+        "is_seen" boolean DEFAULT false NOT NULL,
+        "file_url" text,
+        "file_name" text,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `)
+  } catch (error) {
+    console.error('Failed to ensure messages table exists:', error)
   }
-  await messagesTableReady
 }
 
 export async function uploadChatFile(formData: FormData) {
