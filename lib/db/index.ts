@@ -6,15 +6,16 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set')
 }
 
-// Connection pool tuning. RDS db.t3.micro allows ~35 total connections, so we
-// cap each serverless instance well below that to avoid "too many clients".
+// Connection pool tuning. DATABASE_URL points at Supabase's Supavisor pooler
+// (transaction mode, port 6543), which caps the free tier at a small pool, so we
+// keep each serverless instance well below it to avoid "too many clients".
 // This only changes connection management — schema, queries and table views
 // are completely unaffected.
 const connectionOptions: postgres.Options<{}> = {
   max: 10,            // max connections held by this client
-  idle_timeout: 20,   // close idle connections after 20s (frees RDS slots)
-  connect_timeout: 10, // fail fast if RDS can't be reached in 10s
-  prepare: false,      // disable prepared statements for pgBouncer compatibility
+  idle_timeout: 20,   // close idle connections after 20s (frees pooler slots)
+  connect_timeout: 10, // fail fast if the pooler can't be reached in 10s
+  prepare: false,      // required: transaction-mode pooling can't reuse prepared statements
 }
 
 export let client: postgres.Sql;
