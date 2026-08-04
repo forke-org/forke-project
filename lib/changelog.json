@@ -1,5 +1,57 @@
 [
   {
+    "date": "2026-08-04",
+    "label": "aug 4, 2026",
+    "entries": [
+      {
+        "shortHash": "9c575e9",
+        "author": "Ayushman Mohapatra",
+        "date": "2026-08-04T19:51:30+05:30",
+        "kind": "update",
+        "scope": null,
+        "title": "Revert \"chore: update database connection pool configuration for Supavisor compatibility\""
+      },
+      {
+        "shortHash": "a28ef68",
+        "author": "Ayushman Mohapatra",
+        "date": "2026-08-04T19:51:30+05:30",
+        "kind": "update",
+        "scope": null,
+        "title": "Revert \"refactor: memoize runtime table creation and optimize connection pool settings for serverless performance\""
+      },
+      {
+        "shortHash": "8ab7179",
+        "author": "Ayushman Mohapatra",
+        "date": "2026-08-04T19:43:20+05:30",
+        "kind": "refactor",
+        "scope": null,
+        "title": "Memoize runtime table creation and optimize connection pool settings for serverless performance"
+      },
+      {
+        "shortHash": "6426aa7",
+        "author": "Ayushman Mohapatra",
+        "date": "2026-08-04T19:22:37+05:30",
+        "kind": "chore",
+        "scope": null,
+        "title": "Update database connection pool configuration for Supavisor compatibility"
+      }
+    ]
+  },
+  {
+    "date": "2026-08-01",
+    "label": "aug 1, 2026",
+    "entries": [
+      {
+        "shortHash": "3f75c45",
+        "author": "Ayushman Mohapatra",
+        "date": "2026-08-01T22:18:45+05:30",
+        "kind": "feature",
+        "scope": null,
+        "title": "Add organic referrer detection and improve source metadata display in admin dashboard"
+      }
+    ]
+  },
+  {
     "date": "2026-07-30",
     "label": "jul 30, 2026",
     "entries": [
@@ -17,6 +69,62 @@
     "date": "2026-07-09",
     "label": "jul 9, 2026",
     "entries": [
+      {
+        "shortHash": "7cb77ef",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T23:29:08+05:30",
+        "kind": "feature",
+        "scope": null,
+        "title": "Integrate baseline score computation into pipeline and display scorecard breakdown in workspace UI"
+      },
+      {
+        "shortHash": "63d8052",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T20:49:41+05:30",
+        "kind": "fix",
+        "scope": null,
+        "title": "Add input validation for issuesCount to prevent NaN errors in UI and score calculation"
+      },
+      {
+        "shortHash": "ae67040",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T20:46:12+05:30",
+        "kind": "feature",
+        "scope": null,
+        "title": "Replace static status quality mapping with dynamic calculation function considering issue count and blocking status"
+      },
+      {
+        "shortHash": "43933c7",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T20:38:40+05:30",
+        "kind": "feature",
+        "scope": null,
+        "title": "Implement detailed score deduction audit trail in ScorecardBreakdown component"
+      },
+      {
+        "shortHash": "6b0f60c",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T20:12:41+05:30",
+        "kind": "refactor",
+        "scope": null,
+        "title": "Overhaul execution score UI and data structure to support detailed quality metrics, category weights, and build failure alerts"
+      },
+      {
+        "shortHash": "d9b2c18",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T19:43:13+05:30",
+        "kind": "feature",
+        "scope": null,
+        "title": "Integrate deterministic test scores into review context and refactor AI agent to focus on requirement validation"
+      },
+      {
+        "shortHash": "b9d1f3f",
+        "author": "Sudhanshub27",
+        "date": "2026-07-09T19:09:55+05:30",
+        "kind": "update",
+        "scope": null,
+        "title": "Check"
+      },
       {
         "shortHash": "9099b23",
         "author": "Ayushman Mohapatra",
