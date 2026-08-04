@@ -19,27 +19,37 @@ export interface ActivityEvent {
   ts: number
 }
 
-// Creates the audit table on demand (matches the project's runtime-migration pattern).
+// Creates the audit table on demand (matches the project's runtime-migration
+// pattern). Memoised per process: the DDL takes an ACCESS EXCLUSIVE lock even
+// when it no-ops, so running it per request serialises callers behind it.
+let auditLogTableReady: Promise<void> | null = null
+
 export async function ensureAuditLogTable() {
-  try {
-    await db.execute(sql`
-      CREATE TABLE IF NOT EXISTS "admin_audit_log" (
-        "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "actor_id" uuid,
-        "actor_name" text,
-        "category" text NOT NULL DEFAULT 'admin',
-        "action" text NOT NULL,
-        "target" text,
-        "metadata" jsonb,
-        "created_at" timestamp NOT NULL DEFAULT now()
-      );
-    `)
-    await db.execute(sql`
-      CREATE INDEX IF NOT EXISTS "admin_audit_log_created_at_idx" ON "admin_audit_log" ("created_at");
-    `)
-  } catch (e) {
-    console.error('ensureAuditLogTable failed:', e)
+  if (!auditLogTableReady) {
+    auditLogTableReady = (async () => {
+      try {
+        await db.execute(sql`
+          CREATE TABLE IF NOT EXISTS "admin_audit_log" (
+            "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            "actor_id" uuid,
+            "actor_name" text,
+            "category" text NOT NULL DEFAULT 'admin',
+            "action" text NOT NULL,
+            "target" text,
+            "metadata" jsonb,
+            "created_at" timestamp NOT NULL DEFAULT now()
+          );
+        `)
+        await db.execute(sql`
+          CREATE INDEX IF NOT EXISTS "admin_audit_log_created_at_idx" ON "admin_audit_log" ("created_at");
+        `)
+      } catch (e) {
+        console.error('ensureAuditLogTable failed:', e)
+        auditLogTableReady = null // let a later call retry
+      }
+    })()
   }
+  await auditLogTableReady
 }
 
 interface LogEntry {
