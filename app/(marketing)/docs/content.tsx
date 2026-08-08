@@ -54,6 +54,7 @@ export type Article = {
   title: string
   description: string
   icon: LucideIcon
+  readTime?: string
   /** Surfaced on the docs home grid. */
   popular?: boolean
   toc: TocItem[]
@@ -69,6 +70,8 @@ export type Article = {
 export type DocSection = {
   id: string
   label: string
+  description: string
+  icon: LucideIcon
   /** Collapsed groups still render; this just sets the default open state. */
   defaultOpen?: boolean
   articles: Article[]
@@ -120,6 +123,7 @@ const welcome: Article = {
   title: 'Welcome to Forke',
   description: 'Learn what Forke is and how to get from sign-up to your first payout.',
   icon: GraduationCap,
+  readTime: '2 min read',
   popular: true,
   toc: [
     { id: 'overview', label: 'Overview' },
@@ -254,6 +258,7 @@ const coreConcepts: Article = {
   title: 'Core concepts',
   description: 'The vocabulary that shows up everywhere on Forke — bounties, escrow, levels, trust.',
   icon: Info,
+  readTime: '3 min read',
   popular: true,
   toc: [
     { id: 'bounty', label: 'Bounty' },
@@ -358,6 +363,7 @@ const forDevelopers: Article = {
   title: 'For developers',
   description: 'The end-to-end journey from connecting GitHub to your first instant payout.',
   icon: Code2,
+  readTime: '4 min read',
   popular: true,
   toc: [
     { id: 'signup', label: 'Sign up & connect GitHub' },
@@ -465,6 +471,7 @@ const forFounders: Article = {
   title: 'For founders',
   description: 'Post scoped tasks, fund escrow, and review a clean verdict instead of raw code.',
   icon: Building2,
+  readTime: '4 min read',
   toc: [
     { id: 'apply', label: 'Apply & get approved' },
     { id: 'post', label: 'Post a task' },
@@ -563,9 +570,10 @@ See also: The 4-layer review pipeline (/docs/review-pipeline) and Writing accept
 
 const profile: Article = {
   slug: 'profile',
-  title: 'Profile & proof of work',
-  description: 'Your public Forke profile is your reputation — auto-built from shipped work.',
+  title: 'Developer profile & proof of work',
+  description: 'Your public developer page, activity graph, completed task history, and badges.',
   icon: User,
+  readTime: '2 min read',
   toc: [
     { id: 'public', label: 'Your public profile' },
     { id: 'what', label: "What's on it" },
@@ -612,9 +620,10 @@ The north star: "Prove skill by shipping. Your profile is your reputation."
 
 const githubConnection: Article = {
   slug: 'github-connection',
-  title: 'GitHub connection',
-  description: 'How Forke uses GitHub as the middle layer between you and owner repos.',
+  title: 'Connecting GitHub & permissions',
+  description: 'Why Forke needs GitHub access, what permissions are requested, and how PRs are mapped.',
   icon: GitFork,
+  readTime: '3 min read',
   toc: [
     { id: 'why', label: 'Why GitHub' },
     { id: 'mirror', label: 'Mirror & branch model' },
@@ -672,10 +681,11 @@ Owner repo -> Forke mirror (forke-workspaces) -> dev-{username}/task-{id} -> Pul
 }
 
 const settings: Article = {
-  slug: 'settings',
-  title: 'Settings & payouts setup',
-  description: 'Set your UPI ID, notifications, and account preferences.',
+  slug: 'account-settings',
+  title: 'Account settings & UPI payouts',
+  description: 'Manage your profile details, notification preferences, and UPI ID for instant payouts.',
   icon: Settings,
+  readTime: '2 min read',
   toc: [
     { id: 'upi', label: 'UPI payout ID' },
     { id: 'notifications', label: 'Notifications' },
@@ -717,8 +727,9 @@ Choose what you hear about: claim reminders, review verdicts, payout confirmatio
 const browsingTheFeed: Article = {
   slug: 'browsing-the-feed',
   title: 'Browsing the bounty feed',
-  description: 'The feed is personalised to your level, skill tier, and trust score.',
+  description: 'How to filter tasks by tech stack, level, reward, and estimated completion time.',
   icon: ListChecks,
+  readTime: '3 min read',
   popular: true,
   toc: [
     { id: 'feed', label: 'How the feed is built' },
@@ -782,9 +793,10 @@ Note: Criticality drives how strictly a submission is reviewed — a Production 
 
 const claiming: Article = {
   slug: 'claiming-a-task',
-  title: 'Claiming & soft reservation',
-  description: 'How the claim window, queue, and fast-fail detection keep tasks moving.',
+  title: 'Claiming a task & soft reservations',
+  description: 'How task reservation works, the 20-minute timer, and what happens when you activate.',
   icon: MousePointerClick,
+  readTime: '3 min read',
   toc: [
     { id: 'soft', label: 'Soft reservation' },
     { id: 'activate', label: 'Activating a claim' },
@@ -866,9 +878,10 @@ Note: Don't claim what you can't start — claim, then immediately activate.
 
 const branchWorkflow: Article = {
   slug: 'branch-workflow',
-  title: 'The branch workflow',
-  description: 'Working inside a Forke-managed branch in the mirror repo.',
+  title: 'Forke branch workflow',
+  description: 'How Forke creates dedicated working branches and why developers never push directly to main.',
   icon: GitBranch,
+  readTime: '4 min read',
   toc: [
     { id: 'where', label: 'Where you work' },
     { id: 'scope', label: 'Stay in scope' },
@@ -930,8 +943,9 @@ Note: Task branches are ephemeral — Forke deletes them within 24 hours of reso
 const submittingPr: Article = {
   slug: 'submitting-a-pr',
   title: 'Submitting a pull request',
-  description: 'The structured FORKE_SUBMISSION.md and what happens after you open the PR.',
+  description: 'How to link your PR, run pre-submission validation, and trigger the automated review pipeline.',
   icon: GitPullRequest,
+  readTime: '4 min read',
   popular: true,
   toc: [
     { id: 'template', label: 'FORKE_SUBMISSION.md' },
@@ -1003,13 +1017,12 @@ Track everything from My Submissions (/submissions), grouped by Active, Complete
 `,
 }
 
-/* ---- Review & quality -------------------------------------------- */
-
 const reviewPipeline: Article = {
   slug: 'review-pipeline',
   title: 'The 4-layer review pipeline',
-  description: 'How a submission goes from PR to approved — automated checks plus an AI verdict.',
+  description: 'Static analysis, AI test generation, security scanning, and owner verdict card generation.',
   icon: ShieldCheck,
+  readTime: '5 min read',
   popular: true,
   toc: [
     { id: 'layers', label: 'The four layers' },
@@ -1107,9 +1120,10 @@ Note: Auto-approval is off by default in V1 — it's enabled only after the scor
 
 const verdictCard: Article = {
   slug: 'verdict-card',
-  title: 'The verdict card',
-  description: 'What founders review instead of raw diffs — a plain-English summary with scores.',
+  title: 'Understanding the AI verdict card',
+  description: 'How Forke translates code diffs into plain-English acceptance signals for task owners.',
   icon: Bot,
+  readTime: '3 min read',
   toc: [
     { id: 'what', label: "What's on the card" },
     { id: 'decision', label: 'Approve or request changes' },
@@ -1147,9 +1161,10 @@ You're making a business decision — "does this solve my problem?" — not a li
 
 const acceptanceCriteria: Article = {
   slug: 'acceptance-criteria',
-  title: 'Writing acceptance criteria',
-  description: 'Good criteria make AI review meaningful and revisions rare.',
+  title: 'Writing clear acceptance criteria',
+  description: 'Best practices for founders writing task specs that AI reviewers and developers can test against.',
   icon: ListChecks,
+  readTime: '4 min read',
   toc: [
     { id: 'why', label: 'Why it matters' },
     { id: 'how', label: 'How to write them' },
@@ -1194,13 +1209,12 @@ Note: Pair tight criteria with a tight file scope — together they make scope c
 `,
 }
 
-/* ---- Levels, XP & trust ------------------------------------------ */
-
 const xpSystem: Article = {
   slug: 'xp-system',
-  title: 'How XP works',
-  description: 'What earns XP, what loses it, and how budget tiers set base rewards.',
+  title: 'The XP system & calculations',
+  description: 'How XP is earned from completed tasks, speed bonuses, clean reviews, and streak multipliers.',
   icon: Trophy,
+  readTime: '3 min read',
   popular: true,
   toc: [
     { id: 'earn', label: 'Earning XP' },
@@ -1281,9 +1295,11 @@ See also: Levels & unlocks (/docs/levels-and-unlocks) and the Levels page (/leve
 
 const levelsAndUnlocks: Article = {
   slug: 'levels-and-unlocks',
-  title: 'Levels & unlocks',
-  description: '25 levels across 5 tiers, each unlocking platform privileges.',
+  title: 'Levels (1-25) & feature unlocks',
+  description: 'Full tier breakdown from Level 1 Newcomer to Level 25 Forke Legend and what each tier unlocks.',
   icon: Layers,
+  readTime: '4 min read',
+  popular: true,
   toc: [
     { id: 'tiers', label: 'The five tiers' },
     { id: 'unlocks', label: 'Level unlocks' },
@@ -1368,9 +1384,10 @@ After LVL 25, prestige resets XP while granting permanent status — from Ascend
 
 const skillTracks: Article = {
   slug: 'skill-tracks',
-  title: 'Skill tracks',
-  description: 'Technical access, controlled separately from levels.',
-  icon: Gauge,
+  title: 'Skill tracks & specialization',
+  description: 'Frontend, Backend, Fullstack, and DevOps tracks that gate specialized bounty categories.',
+  icon: Code2,
+  readTime: '3 min read',
   toc: [
     { id: 'tracks', label: 'Tracks & tiers' },
     { id: 'gating', label: 'How tags gate tasks' },
@@ -1420,9 +1437,10 @@ Note: Skill tier is one of the three access gates, alongside level and trust sco
 
 const trustScore: Article = {
   slug: 'trust-score',
-  title: 'Trust score',
-  description: 'Your professional-reliability score — what raises it and what tanks it.',
-  icon: ShieldCheck,
+  title: 'Trust score & platform standing',
+  description: 'How deadline adherence, review pass rates, and dispute history calculate your Trust Score.',
+  icon: Gauge,
+  readTime: '4 min read',
   toc: [
     { id: 'what', label: 'What it measures' },
     { id: 'factors', label: 'Factors' },
@@ -1478,13 +1496,12 @@ Note: A high trust score unlocks more than access — at LVL 15 with Trust >= 90
 `,
 }
 
-/* ---- Payments & escrow ------------------------------------------- */
-
 const escrow: Article = {
-  slug: 'escrow',
-  title: 'How escrow works',
-  description: 'Razorpay escrow protects both sides — funds are locked before work begins.',
+  slug: 'escrow-system',
+  title: 'Razorpay escrow & lockup',
+  description: 'How owner funds are locked before a bounty goes live and how instant payouts trigger on approval.',
   icon: Wallet,
+  readTime: '4 min read',
   popular: true,
   toc: [
     { id: 'lifecycle', label: 'Escrow lifecycle' },
@@ -1546,9 +1563,10 @@ Payouts go to the UPI ID set in your Settings (/settings). Higher levels unlock 
 
 const refundsDisputes: Article = {
   slug: 'refunds-and-disputes',
-  title: 'Refunds & disputes',
-  description: 'What happens when work is rejected or a disagreement needs resolving.',
+  title: 'Refunds, timeouts & disputes',
+  description: 'What happens when a task expires, how refund requests work, and the 48-hour dispute window.',
   icon: RefreshCw,
+  readTime: '4 min read',
   toc: [
     { id: 'rejected', label: 'When work is rejected' },
     { id: 'disputes', label: 'Disputes' },
@@ -1588,13 +1606,12 @@ See also: Refund policy (/refund) and Support (/support).
 `,
 }
 
-/* ---- Policies & support ------------------------------------------ */
-
 const policies: Article = {
-  slug: 'policies',
-  title: 'Policies & trust and safety',
-  description: 'The rules that keep the marketplace fair — and where to read the legal terms.',
+  slug: 'platform-policies',
+  title: 'Code of conduct & marketplace rules',
+  description: 'Rules against plagiarized code, ghosting claimed tasks, circumventing escrow, or alt accounts.',
   icon: ScrollText,
+  readTime: '5 min read',
   toc: [
     { id: 'conduct', label: 'Code of conduct' },
     { id: 'legal', label: 'Legal documents' },
@@ -1635,10 +1652,11 @@ Forke is a trusted, gated marketplace on both sides. A few rules keep it that wa
 }
 
 const support: Article = {
-  slug: 'support',
-  title: 'Getting support',
-  description: 'Stuck on something these docs don’t cover? Here’s how to reach us.',
+  slug: 'getting-support',
+  title: 'Getting help & contacting support',
+  description: 'How to open a support ticket, appeal a dispute, or reach the engineering team directly.',
   icon: LifeBuoy,
+  readTime: '2 min read',
   toc: [{ id: 'contact', label: 'Contact us' }],
   body: (
     <Prose>
@@ -1671,37 +1689,51 @@ export const SECTIONS: DocSection[] = [
   {
     id: 'getting-started',
     label: 'Getting started',
+    description: 'Overview of Forke, core principles, and onboarding for developers & founders.',
+    icon: GraduationCap,
     defaultOpen: true,
     articles: [welcome, coreConcepts, forDevelopers, forFounders],
   },
   {
     id: 'account',
     label: 'Your account',
+    description: 'Manage your developer profile, proof of work, GitHub connection, and UPI payout settings.',
+    icon: User,
     articles: [profile, githubConnection, settings],
   },
   {
     id: 'bounties',
     label: 'Bounties & workflow',
+    description: 'Browse bounties, claim tasks, develop in Forke branches, and submit pull requests.',
+    icon: GitPullRequest,
     articles: [browsingTheFeed, claiming, branchWorkflow, submittingPr],
   },
   {
     id: 'review',
     label: 'Review & quality',
+    description: 'The 4-layer review pipeline, automated checks, AI verdict cards, and acceptance criteria.',
+    icon: ShieldCheck,
     articles: [reviewPipeline, verdictCard, acceptanceCriteria],
   },
   {
     id: 'progression',
     label: 'Levels, XP & trust',
+    description: 'How level progression, XP rewards, skill tracks, and trust scores unlock higher-tier bounties.',
+    icon: Trophy,
     articles: [xpSystem, levelsAndUnlocks, skillTracks, trustScore],
   },
   {
     id: 'payments',
     label: 'Payments & escrow',
+    description: 'Razorpay escrow deposits, instant UPI payout processing, refunds, and disputes.',
+    icon: Wallet,
     articles: [escrow, refundsDisputes],
   },
   {
     id: 'policies',
     label: 'Policies & support',
+    description: 'Platform rules, code of conduct, dispute resolution policies, and contact channels.',
+    icon: LifeBuoy,
     articles: [policies, support],
   },
 ]

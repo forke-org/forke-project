@@ -2,7 +2,6 @@
 
 import React, {
   useState,
-  useMemo,
   useEffect,
   useCallback,
   useSyncExternalStore,
@@ -14,25 +13,15 @@ import { useWaitlisterView } from '@/components/landing/useWaitlisterView'
 import { SECTIONS } from './content'
 import { cn } from '@/lib/utils/cn'
 import CopyPageButton from './CopyPageButton'
+import SearchModal from './SearchModal'
 
 /**
- * Linear-style docs shell: fixed left sidebar (collapsible groups + search),
- * fixed top bar with breadcrumb, independently scrollable content column. The
- * right-rail table of contents is rendered per-page (see DocToc) so it can
- * track the specific article's headings.
+ * Modern developer documentation shell inspired by Linear Docs visual restraint
+ * and GitHub Docs information architecture.
  */
 
 const NAV_STATE_KEY = 'forke-docs-nav-open'
 
-/**
- * Per-section collapsed/expanded state that survives client-side navigation
- * within the docs (sessionStorage). The shell remounts on every page change,
- * so without this the open groups would reset each time.
- *
- * Exposed as a tiny external store so components can read it via
- * `useSyncExternalStore` — that gives a stable server snapshot (no hydration
- * mismatch) and live client updates without calling setState inside an effect.
- */
 const EMPTY_STATE: Record<string, boolean> = {}
 
 const navStore = (() => {
@@ -44,8 +33,6 @@ const navStore = (() => {
     try {
       const raw = sessionStorage.getItem(NAV_STATE_KEY)
       const parsed = raw ? (JSON.parse(raw) as Record<string, boolean>) : EMPTY_STATE
-      // Keep a stable reference unless the contents actually changed, so
-      // getSnapshot doesn't loop.
       if (JSON.stringify(parsed) !== JSON.stringify(cache)) cache = parsed
       return cache
     } catch {
@@ -76,32 +63,18 @@ const navStore = (() => {
 
 function useActiveSlug() {
   const pathname = usePathname()
-  // /docs or /docs/<slug>
   const parts = pathname.split('/').filter(Boolean)
   return parts[0] === 'docs' ? parts[1] ?? null : null
 }
 
 function Sidebar({
   onNavigate,
-  inputId = 'docs-search',
+  onOpenSearch,
 }: {
   onNavigate?: () => void
-  inputId?: string
+  onOpenSearch: () => void
 }) {
   const activeSlug = useActiveSlug()
-  const [query, setQuery] = useState('')
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return SECTIONS
-    return SECTIONS.map((s) => ({
-      ...s,
-      articles: s.articles.filter(
-        (a) =>
-          a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q)
-      ),
-    })).filter((s) => s.articles.length > 0)
-  }, [query])
 
   return (
     <div className="flex h-full flex-col">
@@ -125,39 +98,43 @@ function Sidebar({
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="px-4">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
-          <input
-            id={inputId}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search docs"
-            className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 pl-9 pr-3 text-[13px] text-white placeholder:text-white/30 focus:border-accent/40 focus:outline-none"
-          />
-        </div>
+      {/* Command Search Trigger */}
+      <div className="px-4 py-2">
+        <button
+          onClick={onOpenSearch}
+          className="flex w-full items-center justify-between rounded-lg border border-white/[0.08] bg-white/[0.03] py-2 px-3 text-[13px] text-white/40 transition-colors hover:border-white/[0.16] hover:bg-white/[0.05] hover:text-white/70"
+        >
+          <div className="flex items-center gap-2">
+            <Search className="h-3.5 w-3.5 text-white/40" />
+            <span>Search docs...</span>
+          </div>
+          <kbd className="rounded border border-white/[0.1] bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-white/40">
+            ⌘K
+          </kbd>
+        </button>
       </div>
 
-      {/* Nav */}
-      <nav className="mt-4 flex-1 overflow-y-auto px-2 pb-8 docs-scroll">
-        {filtered.map((section) => (
-          <NavGroup key={section.id} section={section} activeSlug={activeSlug} onNavigate={onNavigate} />
+      {/* Nav Sections */}
+      <nav className="mt-3 flex-1 overflow-y-auto px-3 pb-8 docs-scroll space-y-2">
+        {SECTIONS.map((section) => (
+          <NavGroup
+            key={section.id}
+            section={section}
+            activeSlug={activeSlug}
+            onNavigate={onNavigate}
+          />
         ))}
-        {filtered.length === 0 && (
-          <p className="px-4 py-6 text-[13px] text-white/30">No matches.</p>
-        )}
       </nav>
 
-      {/* Footer link back to product */}
-      <div className="border-t border-white/[0.06] px-4 py-4">
+      {/* Footer link back to main platform */}
+      <div className="border-t border-white/[0.06] px-4 py-3.5">
         <Link
           href="/"
           onClick={onNavigate}
           className="flex items-center gap-2 font-mono text-[12px] text-white/45 transition-colors hover:text-white"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          back to forke
+          Back to Forke App
         </Link>
       </div>
     </div>
@@ -176,21 +153,14 @@ function NavGroup({
   const containsActive = section.articles.some((a) => a.slug === activeSlug)
   const fallbackOpen = Boolean(section.defaultOpen) || containsActive
 
-  // Persisted open/closed map. Server snapshot is empty → SSR & the hydration
-  // render both use the fallback (no mismatch); after mount the client snapshot
-  // reflects sessionStorage and the saved state is restored.
   const saved = useSyncExternalStore(
     navStore.subscribe,
     navStore.getSnapshot,
     navStore.getServerSnapshot
   )
   const hasSaved = Object.prototype.hasOwnProperty.call(saved, section.id)
-  // The active group is always open; otherwise honour the saved value, else the
-  // default. This is derived state — no effect, no setState-in-effect.
   const open = containsActive ? true : hasSaved ? saved[section.id] : fallbackOpen
 
-  // Suppress the expand/collapse transition until after the first paint, so a
-  // restored-from-storage group snaps into place instead of animating on load.
   const [animate, setAnimate] = useState(false)
   useEffect(() => {
     const raf = requestAnimationFrame(() => setAnimate(true))
@@ -202,18 +172,17 @@ function NavGroup({
   }, [section.id, open])
 
   return (
-    <div className="mb-1">
+    <div>
       <button
         onClick={toggle}
-        className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition-colors hover:bg-white/[0.03]"
+        className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left transition-colors hover:bg-white/[0.03] group"
       >
-        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.08em] text-white/40">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.09em] text-white/40 group-hover:text-white/60">
           {section.label}
         </span>
         <ChevronDown
           className={cn(
-            'h-3.5 w-3.5 text-white/30',
-            animate && 'transition-transform',
+            'h-3.5 w-3.5 text-white/30 transition-transform duration-200',
             open ? '' : '-rotate-90'
           )}
         />
@@ -226,7 +195,7 @@ function NavGroup({
         )}
       >
         <div className="overflow-hidden">
-          <ul className="space-y-0.5 py-1">
+          <ul className="space-y-0.5 py-1 pl-1">
             {section.articles.map((a) => {
               const Icon = a.icon
               const active = a.slug === activeSlug
@@ -236,14 +205,17 @@ function NavGroup({
                     href={`/docs/${a.slug}`}
                     onClick={onNavigate}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-[13.5px] transition-colors',
+                      'flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-[13.5px] transition-all duration-150',
                       active
-                        ? 'bg-accent/[0.1] text-white'
+                        ? 'border-l-2 border-accent bg-accent/[0.08] text-white font-medium pl-2'
                         : 'text-white/55 hover:bg-white/[0.03] hover:text-white/90'
                     )}
                   >
                     <Icon
-                      className={cn('h-4 w-4 shrink-0', active ? 'text-accent' : 'text-white/35')}
+                      className={cn(
+                        'h-4 w-4 shrink-0 transition-colors',
+                        active ? 'text-accent' : 'text-white/35'
+                      )}
                       strokeWidth={1.7}
                     />
                     <span className="truncate">{a.title}</span>
@@ -258,18 +230,6 @@ function NavGroup({
   )
 }
 
-function focusSidebarSearch() {
-  // Prefer the mobile drawer input when it's mounted (drawer open); otherwise
-  // fall back to the always-mounted desktop sidebar input.
-  const mobile = document.getElementById('docs-search-mobile') as HTMLInputElement | null
-  const desktop = document.getElementById('docs-search') as HTMLInputElement | null
-  const input = mobile ?? desktop
-  if (input) {
-    input.focus()
-    input.scrollIntoView({ block: 'nearest' })
-  }
-}
-
 export default function DocsShell({
   breadcrumb,
   copy,
@@ -277,23 +237,21 @@ export default function DocsShell({
   children,
 }: {
   breadcrumb?: { label: string; href?: string }[]
-  /** Drives the "Copy page" split button in the top bar. */
   copy?: { markdown: string; viewHref: string }
-  /** When true, the top bar shows "Dashboard" instead of "Sign up". */
   isLoggedIn?: boolean
   children: React.ReactNode
 }) {
   const [mobileOpen, setMobileOpen] = useState(false)
-  // While the lock is on, /register 404s — send the signed-out CTA to /waitlist.
+  const [searchOpen, setSearchOpen] = useState(false)
   const showWaitlisterView = useWaitlisterView()
 
-  // Cmd/Ctrl+K focuses the docs search.
+  // Cmd/Ctrl+K keyboard listener
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setMobileOpen(false)
-        focusSidebarSearch()
+        setSearchOpen((prev) => !prev)
       }
     }
     document.addEventListener('keydown', onKey)
@@ -302,95 +260,113 @@ export default function DocsShell({
 
   return (
     <div className="min-h-screen bg-[#050505] text-white font-sans selection:bg-accent selection:text-white">
-      {/* Sidebar — desktop */}
+      {/* Desktop Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-72 border-r border-white/[0.06] bg-[#070708] lg:block">
-        <Sidebar />
+        <Sidebar onOpenSearch={() => setSearchOpen(true)} />
       </aside>
 
-      {/* Sidebar — mobile drawer */}
+      {/* Mobile Drawer */}
       <div
         className={cn(
-          "fixed inset-0 z-50 lg:hidden transition-all duration-300 ease-in-out",
-          mobileOpen ? "visible pointer-events-auto" : "invisible pointer-events-none"
+          'fixed inset-0 z-50 lg:hidden transition-all duration-300 ease-in-out',
+          mobileOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
         )}
       >
         <div
           className={cn(
-            "absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-in-out",
-            mobileOpen ? "opacity-100" : "opacity-0"
+            'absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-300 ease-in-out',
+            mobileOpen ? 'opacity-100' : 'opacity-0'
           )}
           onClick={() => setMobileOpen(false)}
         />
         <div
           className={cn(
-            "absolute inset-y-0 left-0 w-72 border-r border-white/[0.08] bg-[#070708] transition-transform duration-300 ease-out",
-            mobileOpen ? "translate-x-0" : "-translate-x-full"
+            'absolute inset-y-0 left-0 w-72 border-r border-white/[0.08] bg-[#070708] transition-transform duration-300 ease-out',
+            mobileOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
           <button
             onClick={() => setMobileOpen(false)}
             className="absolute right-3 top-5 z-10 rounded-lg p-1.5 text-white/50 hover:bg-white/[0.06]"
-            aria-label="Close"
+            aria-label="Close menu"
           >
             <X className="h-4 w-4" />
           </button>
-          <Sidebar onNavigate={() => setMobileOpen(false)} inputId="docs-search-mobile" />
+          <Sidebar
+            onNavigate={() => setMobileOpen(false)}
+            onOpenSearch={() => {
+              setMobileOpen(false)
+              setSearchOpen(true)
+            }}
+          />
         </div>
       </div>
 
       <div className="lg:pl-72">
-        {/* Top bar — fixed across the content column; the page scrolls beneath it */}
+        {/* Top Header */}
         <header className="fixed inset-x-0 top-0 z-20 border-b border-white/[0.06] bg-[#050505]/85 backdrop-blur-xl lg:left-72">
-          <div className="flex h-14 items-center gap-3 px-5 md:px-8">
-            {/* Mobile menu trigger */}
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="rounded-lg p-1.5 text-white/60 hover:bg-white/[0.06] lg:hidden"
-              aria-label="Open menu"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-
-            {/* Breadcrumb - Desktop */}
-            <nav className="hidden lg:flex min-w-0 items-center gap-2 text-[13px]">
-              <Link
-                href="/docs"
-                className="shrink-0 text-white/45 transition-colors hover:text-white"
+          <div className="flex h-14 items-center justify-between gap-3 px-4 md:px-8">
+            {/* Left: Mobile trigger & Breadcrumb */}
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                onClick={() => setMobileOpen(true)}
+                className="rounded-lg p-1.5 text-white/60 hover:bg-white/[0.06] lg:hidden"
+                aria-label="Open menu"
               >
-                Docs
-              </Link>
-              {breadcrumb?.map((b) => (
-                <React.Fragment key={b.label}>
-                  <span className="text-white/20">/</span>
-                  {b.href ? (
-                    <Link
-                      href={b.href}
-                      className="shrink-0 text-white/45 transition-colors hover:text-white"
-                    >
-                      {b.label}
-                    </Link>
-                  ) : (
-                    <span className="truncate text-white/80">{b.label}</span>
-                  )}
-                </React.Fragment>
-              ))}
-            </nav>
+                <Menu className="h-5 w-5" />
+              </button>
 
-            {/* Active Heading - Mobile */}
-            <div className="flex lg:hidden min-w-0 items-center text-[14px] font-semibold text-white truncate">
-              {breadcrumb && breadcrumb.length > 0 ? (
-                breadcrumb[breadcrumb.length - 1].label
-              ) : (
-                "Docs"
-              )}
+              {/* Breadcrumb - Desktop */}
+              <nav className="hidden lg:flex min-w-0 items-center gap-2 text-[13px]">
+                <Link
+                  href="/docs"
+                  className="shrink-0 font-medium text-white/50 transition-colors hover:text-white"
+                >
+                  Docs
+                </Link>
+                {breadcrumb?.map((b) => (
+                  <React.Fragment key={b.label}>
+                    <span className="text-white/20">/</span>
+                    {b.href ? (
+                      <Link
+                        href={b.href}
+                        className="shrink-0 text-white/50 transition-colors hover:text-white"
+                      >
+                        {b.label}
+                      </Link>
+                    ) : (
+                      <span className="truncate text-white/90 font-medium">{b.label}</span>
+                    )}
+                  </React.Fragment>
+                ))}
+              </nav>
+
+              {/* Active Heading - Mobile */}
+              <div className="flex lg:hidden min-w-0 items-center text-[14px] font-semibold text-white truncate">
+                {breadcrumb && breadcrumb.length > 0
+                  ? breadcrumb[breadcrumb.length - 1].label
+                  : 'Docs'}
+              </div>
             </div>
 
             {/* Right cluster */}
-            <div className="ml-auto flex items-center gap-2.5">
-              {/* Copy page split button (Image 3) — no theme toggle */}
+            <div className="flex items-center gap-2.5 shrink-0">
+              {/* Top search trigger button */}
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="hidden sm:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[12.5px] text-white/50 transition-colors hover:border-white/[0.16] hover:text-white"
+              >
+                <Search className="h-3.5 w-3.5 text-white/40" />
+                <span>Search</span>
+                <kbd className="rounded border border-white/[0.1] bg-white/[0.04] px-1.5 py-0.2 font-mono text-[10px] text-white/40">
+                  ⌘K
+                </kbd>
+              </button>
+
+              {/* Copy page split button */}
               {copy && <CopyPageButton markdown={copy.markdown} viewHref={copy.viewHref} />}
 
-              {/* Auth CTA — Dashboard when signed in, otherwise Sign up */}
+              {/* Auth CTA */}
               {isLoggedIn ? (
                 <Link
                   href="/dashboard"
@@ -401,7 +377,7 @@ export default function DocsShell({
               ) : (
                 <Link
                   href={showWaitlisterView ? '/waitlist' : '/signin'}
-                  className="rounded-lg bg-white px-3.5 py-1.5 text-[13px] font-semibold tracking-tight text-[#0a0a0a] transition-colors hover:bg-white/90"
+                  className="rounded-lg bg-accent px-3.5 py-1.5 text-[13px] font-semibold tracking-tight text-[#0a0a0a] transition-colors hover:bg-accent-hover"
                 >
                   {showWaitlisterView ? 'Join waitlist' : 'Sign up'}
                 </Link>
@@ -410,9 +386,12 @@ export default function DocsShell({
           </div>
         </header>
 
-        {/* Offset for the fixed top bar (h-14 = 3.5rem) */}
+        {/* Content Container */}
         <div className="pt-14">{children}</div>
       </div>
+
+      {/* Global Command Search Modal */}
+      <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </div>
   )
 }

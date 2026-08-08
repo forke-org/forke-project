@@ -6,8 +6,6 @@ import { auth } from '@/auth'
 import DocsShell from './DocsShell'
 import { SECTIONS, POPULAR_ARTICLES, getDocsIndexMarkdown, type Article } from './content'
 
-// Absolute so the docs home tab reads exactly "Forke Docs" (not wrapped by the
-// root "%s | Forke" template). Other metadata is inherited from docs/layout.tsx.
 export const metadata: Metadata = {
   title: { absolute: 'Forke Docs' },
 }
@@ -17,16 +15,44 @@ function ArticleCard({ article }: { article: Article }) {
   return (
     <Link
       href={`/docs/${article.slug}`}
-      className="group flex flex-col rounded-2xl border border-white/[0.08] bg-[#0a0a0c] p-6 transition-colors hover:border-white/[0.16] hover:bg-[#0d0d10]"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/[0.08] bg-[#070709] p-4 text-left transition-all duration-200 hover:border-accent/30 hover:bg-[#0a0a0e]"
     >
-      {/* Icon tile — framed, softly orange-tinted (image 3); brightens on hover */}
-      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-accent/20 bg-gradient-to-b from-accent/[0.12] to-accent/[0.04] text-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-300 group-hover:border-accent/40 group-hover:from-accent/[0.2] group-hover:to-accent/[0.06]">
-        <Icon className="h-[22px] w-[22px]" strokeWidth={1.7} />
+      {/* Soft background gradient */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent transition-opacity duration-300 group-hover:from-accent/[0.05]"
+      />
+
+      {/* Faded background watermark logo/icon */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-2 -bottom-2 flex items-center justify-center text-white/[0.04] transition-all duration-300 group-hover:text-accent/[0.08] group-hover:scale-110 group-hover:-translate-y-1"
+      >
+        <Icon className="h-24 w-24 stroke-[1.2]" />
       </div>
-      <h3 className="mt-5 text-[15px] font-medium tracking-[-0.01em] text-white">
-        {article.title}
-      </h3>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-white/45">{article.description}</p>
+
+      {/* Card Content - Text is primary */}
+      <div className="relative z-10">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[14.5px] font-medium tracking-tight text-white transition-colors group-hover:text-accent">
+            {article.title}
+          </h3>
+          <ArrowRight
+            className="h-4 w-4 shrink-0 text-white/20 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-accent opacity-50 group-hover:opacity-100"
+            strokeWidth={1.7}
+          />
+        </div>
+        <p className="mt-2 text-[13px] leading-relaxed text-white/50 group-hover:text-white/65 line-clamp-2 pr-4">
+          {article.description}
+        </p>
+
+        {/* Feature B: Metadata Badge (Read Time) */}
+        {article.readTime && (
+          <div className="mt-3.5 flex items-center gap-2 pt-2 border-t border-white/[0.04] font-mono text-[11px] text-white/40">
+            <span>{article.readTime}</span>
+          </div>
+        )}
+      </div>
     </Link>
   )
 }
@@ -38,69 +64,88 @@ export default async function DocsHome() {
       copy={{ markdown: getDocsIndexMarkdown(), viewHref: '/docs/raw' }}
       isLoggedIn={Boolean(session?.user)}
     >
-      <main className="mx-auto max-w-5xl px-5 py-12 md:px-10 md:py-16">
-        {/* Hero */}
+      <main className="mx-auto max-w-5xl px-5 py-8 md:px-10 md:py-12">
+        {/* Compact Editorial Hero */}
         <div className="max-w-2xl">
-          <h1 className="text-4xl font-medium tracking-[-0.035em] text-white md:text-5xl">
+          <h1 className="text-3xl font-medium tracking-tight text-white md:text-5xl">
             Forke <span className="text-accent">Docs</span>
           </h1>
-          <p className="mt-4 text-lg font-light leading-relaxed text-white/55">
-            Everything about shipping bounties, getting paid, and the systems that keep the
-            marketplace fair — for developers and founders alike.
+          <p className="mt-3 text-base md:text-lg font-light leading-relaxed text-white/60">
+            Everything you need to ship work, earn trust, and get paid on Forke.
           </p>
-        </div>
 
-        {/* Popular */}
-        <section className="mt-14">
-          <h2 className="font-mono text-[12px] uppercase tracking-[0.1em] text-white/40">
-            Popular
-          </h2>
-          <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {POPULAR_ARTICLES.map((a) => (
-              <ArticleCard key={a.slug} article={a} />
+          {/* Quick links tag bar */}
+          <div className="mt-5 flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.06]">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-white/35 mr-1">
+              Quick links:
+            </span>
+            {POPULAR_ARTICLES.slice(0, 4).map((a) => (
+              <Link
+                key={a.slug}
+                href={`/docs/${a.slug}`}
+                className="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[12px] text-white/65 transition-colors hover:border-accent/40 hover:bg-accent/[0.08] hover:text-white"
+              >
+                {a.title}
+              </Link>
             ))}
           </div>
-        </section>
+        </div>
 
-        {/* All sections */}
-        {SECTIONS.map((section) => (
-          <section key={section.id} className="mt-14">
-            <div className="flex items-end justify-between">
-              <h2 className="font-mono text-[12px] uppercase tracking-[0.1em] text-white/40">
-                {section.label}
-              </h2>
-              <Link
-                href={`/docs/${section.articles[0].slug}`}
-                className="group inline-flex items-center gap-1 font-mono text-[12px] text-white/35 transition-colors hover:text-white"
-              >
-                start
-                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-              </Link>
-            </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {section.articles.map((a) => (
-                <ArticleCard key={a.slug} article={a} />
-              ))}
-            </div>
-          </section>
-        ))}
+        {/* Section Blocks Architecture */}
+        <div className="mt-10 space-y-8">
+          {SECTIONS.map((section) => {
+            return (
+              <section key={section.id} id={section.id} className="scroll-mt-20">
+                <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#09090b]/90 p-5 md:p-6 shadow-xl backdrop-blur-sm">
+                  {/* Soft top-left section glow */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-accent/[0.03] blur-2xl"
+                  />
+
+                  {/* Connected Section Header */}
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.06] pb-4 mb-4 gap-2">
+                    <div>
+                      <h2 className="font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
+                        {section.label}
+                      </h2>
+                      <p className="text-[13px] text-white/50 mt-0.5">
+                        {section.description}
+                      </p>
+                    </div>
+                    <span className="self-start sm:self-auto rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 font-mono text-[11px] font-medium text-white/45">
+                      {section.articles.length} {section.articles.length === 1 ? 'article' : 'articles'}
+                    </span>
+                  </div>
+
+                  {/* Connected Article Grid */}
+                  <div className="relative z-10 grid gap-3 sm:grid-cols-2">
+                    {section.articles.map((a) => (
+                      <ArticleCard key={a.slug} article={a} />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )
+          })}
+        </div>
 
         {/* Help footer */}
-        <section className="mt-16 rounded-2xl border border-white/[0.08] bg-[#0a0a0c] p-8 text-center">
-          <h2 className="text-xl font-medium tracking-[-0.02em] text-white">Still stuck?</h2>
+        <section className="mt-14 rounded-2xl border border-white/[0.08] bg-[#09090b] p-8 text-center shadow-xl">
+          <h2 className="text-xl font-medium tracking-tight text-white">Still stuck?</h2>
           <p className="mx-auto mt-2 max-w-md text-[14px] leading-relaxed text-white/50">
-            If the docs don&apos;t answer your question, the team is a message away.
+            If the documentation doesn&apos;t answer your question, our team is always ready to assist.
           </p>
-          <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Link
               href="/support"
-              className="rounded-full bg-accent px-5 py-2 text-[13px] font-semibold tracking-tight text-[#0a0a0a] transition-colors hover:bg-accent-hover"
+              className="rounded-lg bg-accent px-5 py-2.5 text-[13px] font-semibold tracking-tight text-[#0a0a0a] transition-colors hover:bg-accent-hover"
             >
               Contact support
             </Link>
             <Link
               href="/contact"
-              className="rounded-full border border-white/[0.12] px-5 py-2 text-[13px] font-medium text-white/70 transition-colors hover:border-white/25 hover:text-white"
+              className="rounded-lg border border-white/[0.12] bg-white/[0.02] px-5 py-2.5 text-[13px] font-medium text-white/80 transition-colors hover:border-white/25 hover:text-white"
             >
               Contact us
             </Link>
