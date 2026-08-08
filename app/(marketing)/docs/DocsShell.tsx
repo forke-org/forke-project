@@ -216,7 +216,6 @@ function NavGroup({
                         'h-4 w-4 shrink-0 transition-colors',
                         active ? 'text-accent' : 'text-white/35'
                       )}
-                      strokeWidth={1.7}
                     />
                     <span className="truncate">{a.title}</span>
                   </Link>

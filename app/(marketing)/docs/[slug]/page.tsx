@@ -91,7 +91,7 @@ export default async function DocArticlePage({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-accent/25 bg-accent/[0.08] text-accent">
-                  <Icon className="h-4 w-4" strokeWidth={1.8} />
+                  <Icon className="h-4.5 w-4.5" />
                 </div>
                 <p className="font-mono text-[11px] uppercase tracking-widest text-accent font-semibold">
                   {section.label}

@@ -1,5 +1,27 @@
 [
   {
+    "date": "2026-08-08",
+    "label": "aug 8, 2026",
+    "entries": [
+      {
+        "shortHash": "97795b6",
+        "author": "Sudhanshu Batra",
+        "date": "2026-08-08T23:16:18+05:30",
+        "kind": "update",
+        "scope": null,
+        "title": "Docs/update (#43)"
+      },
+      {
+        "shortHash": "c1c0efa",
+        "author": "Ayushman Mohapatra",
+        "date": "2026-08-08T22:16:09+05:30",
+        "kind": "refactor",
+        "scope": null,
+        "title": "Clean up Drizzle migration files and snapshots to reset database schema state"
+      }
+    ]
+  },
+  {
     "date": "2026-08-04",
     "label": "aug 4, 2026",
     "entries": [

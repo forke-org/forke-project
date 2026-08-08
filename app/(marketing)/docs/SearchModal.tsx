@@ -181,7 +181,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                               : 'border-white/[0.08] bg-white/[0.04] text-white/50'
                           )}
                         >
-                          <Icon className="h-4 w-4" strokeWidth={1.8} />
+                          <Icon className="h-4 w-4" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
