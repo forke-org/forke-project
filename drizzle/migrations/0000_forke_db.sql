@@ -1,7 +1,7 @@
 CREATE TYPE "public"."blog_status" AS ENUM('draft', 'published');--> statement-breakpoint
 CREATE TYPE "public"."escrow_status" AS ENUM('held', 'released', 'refunded');--> statement-breakpoint
 CREATE TYPE "public"."submission_status" AS ENUM('pending', 'approved', 'rejected');--> statement-breakpoint
-CREATE TYPE "public"."task_status" AS ENUM('open', 'claimed', 'submitted', 'approved', 'disputed');--> statement-breakpoint
+CREATE TYPE "public"."task_status" AS ENUM('processing', 'open', 'claimed', 'submitted', 'approved', 'disputed');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('developer', 'owner');--> statement-breakpoint
 CREATE TABLE "account" (
 	"userId" uuid NOT NULL,
@@ -308,6 +308,11 @@ CREATE TABLE "tasks" (
 	"claimant_id" uuid,
 	"claimed_at" timestamp,
 	"deadline" timestamp,
+	"sandbox_repo_id" uuid,
+	"source_repo" text,
+	"codespace_name" text,
+	"codespace_url" text,
+	"codespace_status" text,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -367,4 +372,5 @@ ALTER TABLE "sql_query_requests" ADD CONSTRAINT "sql_query_requests_reviewed_by_
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_task_id_tasks_id_fk" FOREIGN KEY ("task_id") REFERENCES "public"."tasks"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_developer_id_users_id_fk" FOREIGN KEY ("developer_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_client_id_users_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_claimant_id_users_id_fk" FOREIGN KEY ("claimant_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_claimant_id_users_id_fk" FOREIGN KEY ("claimant_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_sandbox_repo_id_sandbox_repos_id_fk" FOREIGN KEY ("sandbox_repo_id") REFERENCES "public"."sandbox_repos"("id") ON DELETE set null ON UPDATE no action;

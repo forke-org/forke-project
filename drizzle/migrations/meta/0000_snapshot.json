@@ -1,5 +1,5 @@
 {
-  "id": "4285a955-ea12-4796-827c-7f668050647a",
+  "id": "51297a99-c2ba-4e34-9921-2b3528e4ad40",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2075,6 +2075,36 @@
           "primaryKey": false,
           "notNull": false
         },
+        "sandbox_repo_id": {
+          "name": "sandbox_repo_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "source_repo": {
+          "name": "source_repo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "codespace_name": {
+          "name": "codespace_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "codespace_url": {
+          "name": "codespace_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "codespace_status": {
+          "name": "codespace_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp",
@@ -2109,6 +2139,19 @@
             "id"
           ],
           "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "tasks_sandbox_repo_id_sandbox_repos_id_fk": {
+          "name": "tasks_sandbox_repo_id_sandbox_repos_id_fk",
+          "tableFrom": "tasks",
+          "tableTo": "sandbox_repos",
+          "columnsFrom": [
+            "sandbox_repo_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -2370,6 +2413,7 @@
       "name": "task_status",
       "schema": "public",
       "values": [
+        "processing",
         "open",
         "claimed",
         "submitted",
