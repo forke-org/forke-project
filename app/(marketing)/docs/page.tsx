@@ -23,12 +23,12 @@ function ArticleCard({ article }: { article: Article }) {
         className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent transition-opacity duration-300 group-hover:from-accent/[0.05]"
       />
 
-      {/* Faded background watermark logo/icon */}
+      {/* Solid React-Icon watermark floating in background: 3/4 visible, right edge cut off */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-2 -bottom-2 flex items-center justify-center text-white/[0.04] transition-all duration-300 group-hover:text-accent/[0.08] group-hover:scale-110 group-hover:-translate-y-1"
+        className="pointer-events-none absolute -right-8 -bottom-8 flex items-center justify-center text-white/[0.08] transition-all duration-300 group-hover:text-accent/[0.14] group-hover:scale-105"
       >
-        <Icon className="h-24 w-24 stroke-[1.2]" />
+        <Icon className="h-44 w-44" />
       </div>
 
       {/* Card Content - Text is primary */}

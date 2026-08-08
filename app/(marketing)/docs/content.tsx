@@ -1,29 +1,29 @@
 import React from 'react'
+import type { IconType } from 'react-icons'
 import {
-  GraduationCap,
-  Info,
-  Code2,
-  Building2,
-  User,
-  GitFork,
-  Settings,
-  ListChecks,
-  MousePointerClick,
-  GitBranch,
-  GitPullRequest,
-  ShieldCheck,
-  Bot,
-  Trophy,
-  Layers,
-  Gauge,
-  Wallet,
-  RefreshCw,
-  ScrollText,
-  LifeBuoy,
-  ArrowRight,
-  ArrowDown,
-  type LucideIcon,
-} from 'lucide-react'
+  FaGraduationCap,
+  FaCircleInfo,
+  FaCode,
+  FaBuilding,
+  FaUser,
+  FaGitAlt,
+  FaGear,
+  FaListCheck,
+  FaHandPointer,
+  FaCodeBranch,
+  FaCodePullRequest,
+  FaShieldHalved,
+  FaRobot,
+  FaTrophy,
+  FaLayerGroup,
+  FaGaugeHigh,
+  FaWallet,
+  FaRotateLeft,
+  FaScroll,
+  FaLifeRing,
+  FaArrowRight,
+  FaArrowDown,
+} from 'react-icons/fa6'
 import {
   Prose,
   Lead,
@@ -53,7 +53,7 @@ export type Article = {
   slug: string
   title: string
   description: string
-  icon: LucideIcon
+  icon: IconType | React.ComponentType<any>
   readTime?: string
   levelReq?: string
   /** Surfaced on the docs home grid. */
@@ -72,7 +72,7 @@ export type DocSection = {
   id: string
   label: string
   description: string
-  icon: LucideIcon
+  icon: IconType | React.ComponentType<any>
   /** Collapsed groups still render; this just sets the default open state. */
   defaultOpen?: boolean
   articles: Article[]
@@ -123,7 +123,7 @@ const welcome: Article = {
   slug: 'welcome',
   title: 'Welcome to Forke',
   description: 'Learn what Forke is and how to get from sign-up to your first payout.',
-  icon: GraduationCap,
+  icon: FaGraduationCap,
   readTime: '2 min read',
   levelReq: 'All levels',
   popular: true,
@@ -259,7 +259,7 @@ const coreConcepts: Article = {
   slug: 'core-concepts',
   title: 'Core concepts',
   description: 'The vocabulary that shows up everywhere on Forke — bounties, escrow, levels, trust.',
-  icon: Info,
+  icon: FaCircleInfo,
   readTime: '3 min read',
   levelReq: 'All levels',
   popular: true,
@@ -365,7 +365,7 @@ const forDevelopers: Article = {
   slug: 'for-developers',
   title: 'For developers',
   description: 'The end-to-end journey from connecting GitHub to your first instant payout.',
-  icon: Code2,
+  icon: FaCode,
   readTime: '4 min read',
   levelReq: 'Lvl 1+',
   popular: true,
@@ -474,7 +474,7 @@ const forFounders: Article = {
   slug: 'for-founders',
   title: 'For founders',
   description: 'Post scoped tasks, fund escrow, and review a clean verdict instead of raw code.',
-  icon: Building2,
+  icon: FaBuilding,
   readTime: '4 min read',
   levelReq: 'Founders',
   toc: [
@@ -577,7 +577,7 @@ const profile: Article = {
   slug: 'profile',
   title: 'Developer profile & proof of work',
   description: 'Your public developer page, activity graph, completed task history, and badges.',
-  icon: User,
+  icon: FaUser,
   readTime: '2 min read',
   levelReq: 'All levels',
   toc: [
@@ -628,7 +628,7 @@ const githubConnection: Article = {
   slug: 'github-connection',
   title: 'Connecting GitHub & permissions',
   description: 'Why Forke needs GitHub access, what permissions are requested, and how PRs are mapped.',
-  icon: GitFork,
+  icon: FaGitAlt,
   readTime: '3 min read',
   levelReq: 'All levels',
   toc: [
@@ -691,7 +691,7 @@ const settings: Article = {
   slug: 'account-settings',
   title: 'Account settings & UPI payouts',
   description: 'Manage your profile details, notification preferences, and UPI ID for instant payouts.',
-  icon: Settings,
+  icon: FaGear,
   readTime: '2 min read',
   levelReq: 'All levels',
   toc: [
@@ -736,7 +736,7 @@ const browsingTheFeed: Article = {
   slug: 'browsing-the-feed',
   title: 'Browsing the bounty feed',
   description: 'How to filter tasks by tech stack, level, reward, and estimated completion time.',
-  icon: ListChecks,
+  icon: FaListCheck,
   readTime: '3 min read',
   levelReq: 'Lvl 1+',
   popular: true,
@@ -804,7 +804,7 @@ const claiming: Article = {
   slug: 'claiming-a-task',
   title: 'Claiming a task & soft reservations',
   description: 'How task reservation works, the 20-minute timer, and what happens when you activate.',
-  icon: MousePointerClick,
+  icon: FaHandPointer,
   readTime: '3 min read',
   levelReq: 'Lvl 1+',
   toc: [
@@ -890,7 +890,7 @@ const branchWorkflow: Article = {
   slug: 'branch-workflow',
   title: 'Forke branch workflow',
   description: 'How Forke creates dedicated working branches and why developers never push directly to main.',
-  icon: GitBranch,
+  icon: FaCodeBranch,
   readTime: '4 min read',
   levelReq: 'Lvl 1+',
   toc: [
@@ -955,7 +955,7 @@ const submittingPr: Article = {
   slug: 'submitting-a-pr',
   title: 'Submitting a pull request',
   description: 'How to link your PR, run pre-submission validation, and trigger the automated review pipeline.',
-  icon: GitPullRequest,
+  icon: FaCodePullRequest,
   readTime: '4 min read',
   levelReq: 'Lvl 1+',
   popular: true,
@@ -1033,7 +1033,7 @@ const reviewPipeline: Article = {
   slug: 'review-pipeline',
   title: 'The 4-layer review pipeline',
   description: 'Static analysis, AI test generation, security scanning, and owner verdict card generation.',
-  icon: ShieldCheck,
+  icon: FaShieldHalved,
   readTime: '5 min read',
   levelReq: 'Lvl 5+',
   popular: true,
@@ -1135,7 +1135,7 @@ const verdictCard: Article = {
   slug: 'verdict-card',
   title: 'Understanding the AI verdict card',
   description: 'How Forke translates code diffs into plain-English acceptance signals for task owners.',
-  icon: Bot,
+  icon: FaRobot,
   readTime: '3 min read',
   levelReq: 'Lvl 5+',
   toc: [
@@ -1177,7 +1177,7 @@ const acceptanceCriteria: Article = {
   slug: 'acceptance-criteria',
   title: 'Writing clear acceptance criteria',
   description: 'Best practices for founders writing task specs that AI reviewers and developers can test against.',
-  icon: ListChecks,
+  icon: FaListCheck,
   readTime: '4 min read',
   levelReq: 'Founders',
   toc: [
@@ -1228,7 +1228,7 @@ const xpSystem: Article = {
   slug: 'xp-system',
   title: 'The XP system & calculations',
   description: 'How XP is earned from completed tasks, speed bonuses, clean reviews, and streak multipliers.',
-  icon: Trophy,
+  icon: FaTrophy,
   readTime: '3 min read',
   levelReq: 'Lvl 1+',
   popular: true,
@@ -1313,7 +1313,7 @@ const levelsAndUnlocks: Article = {
   slug: 'levels-and-unlocks',
   title: 'Levels (1-25) & feature unlocks',
   description: 'Full tier breakdown from Level 1 Newcomer to Level 25 Forke Legend and what each tier unlocks.',
-  icon: Layers,
+  icon: FaLayerGroup,
   readTime: '4 min read',
   levelReq: 'Lvl 1-25',
   popular: true,
@@ -1403,7 +1403,7 @@ const skillTracks: Article = {
   slug: 'skill-tracks',
   title: 'Skill tracks & specialization',
   description: 'Frontend, Backend, Fullstack, and DevOps tracks that gate specialized bounty categories.',
-  icon: Code2,
+  icon: FaGaugeHigh,
   readTime: '3 min read',
   levelReq: 'Lvl 6+',
   toc: [
@@ -1457,7 +1457,7 @@ const trustScore: Article = {
   slug: 'trust-score',
   title: 'Trust score & platform standing',
   description: 'How deadline adherence, review pass rates, and dispute history calculate your Trust Score.',
-  icon: Gauge,
+  icon: FaShieldHalved,
   readTime: '4 min read',
   levelReq: 'Lvl 1+',
   toc: [
@@ -1519,7 +1519,7 @@ const escrow: Article = {
   slug: 'escrow-system',
   title: 'Razorpay escrow & lockup',
   description: 'How owner funds are locked before a bounty goes live and how instant payouts trigger on approval.',
-  icon: Wallet,
+  icon: FaWallet,
   readTime: '4 min read',
   levelReq: 'All levels',
   popular: true,
@@ -1585,7 +1585,7 @@ const refundsDisputes: Article = {
   slug: 'refunds-and-disputes',
   title: 'Refunds, timeouts & disputes',
   description: 'What happens when a task expires, how refund requests work, and the 48-hour dispute window.',
-  icon: RefreshCw,
+  icon: FaRotateLeft,
   readTime: '4 min read',
   levelReq: 'All levels',
   toc: [
@@ -1631,7 +1631,7 @@ const policies: Article = {
   slug: 'platform-policies',
   title: 'Code of conduct & marketplace rules',
   description: 'Rules against plagiarized code, ghosting claimed tasks, circumventing escrow, or alt accounts.',
-  icon: ScrollText,
+  icon: FaScroll,
   readTime: '5 min read',
   levelReq: 'All levels',
   toc: [
@@ -1677,7 +1677,7 @@ const support: Article = {
   slug: 'getting-support',
   title: 'Getting help & contacting support',
   description: 'How to open a support ticket, appeal a dispute, or reach the engineering team directly.',
-  icon: LifeBuoy,
+  icon: FaLifeRing,
   readTime: '2 min read',
   levelReq: 'All levels',
   toc: [{ id: 'contact', label: 'Contact us' }],
@@ -1713,7 +1713,7 @@ export const SECTIONS: DocSection[] = [
     id: 'getting-started',
     label: 'Getting started',
     description: 'Overview of Forke, core principles, and onboarding for developers & founders.',
-    icon: GraduationCap,
+    icon: FaGraduationCap,
     defaultOpen: true,
     articles: [welcome, coreConcepts, forDevelopers, forFounders],
   },
@@ -1721,42 +1721,42 @@ export const SECTIONS: DocSection[] = [
     id: 'account',
     label: 'Your account',
     description: 'Manage your developer profile, proof of work, GitHub connection, and UPI payout settings.',
-    icon: User,
+    icon: FaUser,
     articles: [profile, githubConnection, settings],
   },
   {
     id: 'bounties',
     label: 'Bounties & workflow',
     description: 'Browse bounties, claim tasks, develop in Forke branches, and submit pull requests.',
-    icon: GitPullRequest,
+    icon: FaCodePullRequest,
     articles: [browsingTheFeed, claiming, branchWorkflow, submittingPr],
   },
   {
     id: 'review',
     label: 'Review & quality',
     description: 'The 4-layer review pipeline, automated checks, AI verdict cards, and acceptance criteria.',
-    icon: ShieldCheck,
+    icon: FaShieldHalved,
     articles: [reviewPipeline, verdictCard, acceptanceCriteria],
   },
   {
     id: 'progression',
     label: 'Levels, XP & trust',
     description: 'How level progression, XP rewards, skill tracks, and trust scores unlock higher-tier bounties.',
-    icon: Trophy,
+    icon: FaTrophy,
     articles: [xpSystem, levelsAndUnlocks, skillTracks, trustScore],
   },
   {
     id: 'payments',
     label: 'Payments & escrow',
     description: 'Razorpay escrow deposits, instant UPI payout processing, refunds, and disputes.',
-    icon: Wallet,
+    icon: FaWallet,
     articles: [escrow, refundsDisputes],
   },
   {
     id: 'policies',
     label: 'Policies & support',
     description: 'Platform rules, code of conduct, dispute resolution policies, and contact channels.',
-    icon: LifeBuoy,
+    icon: FaLifeRing,
     articles: [policies, support],
   },
 ]
@@ -1831,12 +1831,12 @@ export function getDocsIndexMarkdown(): string {
 
 function LoopVisual() {
   const steps = [
-    { icon: ListChecks, label: 'Browse' },
-    { icon: MousePointerClick, label: 'Claim' },
-    { icon: GitBranch, label: 'Build' },
-    { icon: GitPullRequest, label: 'Submit' },
-    { icon: ShieldCheck, label: 'Reviewed' },
-    { icon: Wallet, label: 'Paid' },
+    { icon: FaListCheck, label: 'Browse' },
+    { icon: FaHandPointer, label: 'Claim' },
+    { icon: FaCodeBranch, label: 'Build' },
+    { icon: FaCodePullRequest, label: 'Submit' },
+    { icon: FaShieldHalved, label: 'Reviewed' },
+    { icon: FaWallet, label: 'Paid' },
   ]
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
@@ -1846,12 +1846,12 @@ function LoopVisual() {
           <React.Fragment key={s.label}>
             <div className="flex flex-col items-center gap-2">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-accent/25 bg-accent/[0.06] text-accent">
-                <Icon className="h-5 w-5" strokeWidth={1.6} />
+                <Icon className="h-5 w-5" />
               </div>
               <span className="font-mono text-[11px] text-white/55">{s.label}</span>
             </div>
             {i < steps.length - 1 && (
-              <ArrowRight className="mb-5 hidden h-4 w-4 text-white/20 sm:inline" strokeWidth={1.7} />
+              <FaArrowRight className="mb-5 hidden h-4 w-4 text-white/20 sm:inline" />
             )}
           </React.Fragment>
         )
@@ -1878,7 +1878,7 @@ function OrchestrationVisual() {
             {r}
           </div>
           {i < rows.length - 1 && (
-            <ArrowDown className="h-3.5 w-3.5 text-accent/50" strokeWidth={1.7} />
+            <FaArrowDown className="h-3.5 w-3.5 text-accent/50" />
           )}
         </div>
       ))}
