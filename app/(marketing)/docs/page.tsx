@@ -45,6 +45,17 @@ function ArticleCard({ article }: { article: Article }) {
         <p className="mt-2 text-[13px] leading-relaxed text-white/50 group-hover:text-white/65 line-clamp-2 pr-4">
           {article.description}
         </p>
+
+        {/* Feature B: Metadata Badges (Read Time & Level Requirement) */}
+        {(article.readTime || article.levelReq) && (
+          <div className="mt-3.5 flex items-center gap-2 pt-2 border-t border-white/[0.04] font-mono text-[11px] text-white/40">
+            {article.readTime && <span>{article.readTime}</span>}
+            {article.readTime && article.levelReq && <span>•</span>}
+            {article.levelReq && (
+              <span className="text-accent/75 font-medium">{article.levelReq}</span>
+            )}
+          </div>
+        )}
       </div>
     </Link>
   )
@@ -87,7 +98,6 @@ export default async function DocsHome() {
         {/* Section Blocks Architecture */}
         <div className="mt-10 space-y-8">
           {SECTIONS.map((section) => {
-            const SectionIcon = section.icon
             return (
               <section key={section.id} id={section.id} className="scroll-mt-20">
                 <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#09090b]/90 p-5 md:p-6 shadow-xl backdrop-blur-sm">
@@ -99,22 +109,13 @@ export default async function DocsHome() {
 
                   {/* Connected Section Header */}
                   <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.06] pb-4 mb-4 gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
-                        <div
-                          aria-hidden
-                          className="pointer-events-none absolute -inset-3.5 rounded-full bg-[radial-gradient(circle,_rgba(249,115,22,0.22)_0%,_transparent_70%)] blur-sm"
-                        />
-                        <SectionIcon className="relative z-10 h-4.5 w-4.5 text-accent" strokeWidth={1.8} />
-                      </div>
-                      <div>
-                        <h2 className="font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
-                          {section.label}
-                        </h2>
-                        <p className="text-[13px] text-white/50 mt-0.5">
-                          {section.description}
-                        </p>
-                      </div>
+                    <div>
+                      <h2 className="font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
+                        {section.label}
+                      </h2>
+                      <p className="text-[13px] text-white/50 mt-0.5">
+                        {section.description}
+                      </p>
                     </div>
                     <span className="self-start sm:self-auto rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 font-mono text-[11px] font-medium text-white/45">
                       {section.articles.length} {section.articles.length === 1 ? 'article' : 'articles'}

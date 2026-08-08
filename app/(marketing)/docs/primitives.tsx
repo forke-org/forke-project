@@ -1,4 +1,6 @@
-import React from 'react'
+'use client'
+
+import React, { useState } from 'react'
 import Link from 'next/link'
 
 /**
@@ -85,10 +87,10 @@ export function DocLink({ href, children }: { href: string; children: React.Reac
 
 export function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-accent/20 bg-accent/[0.05] px-4 py-3.5 text-[14px] leading-relaxed text-white/65">
-      <span className="mr-2 font-mono text-[11px] uppercase tracking-widest text-accent/80">
+    <div className="relative overflow-hidden rounded-xl border border-accent/20 border-l-4 border-l-accent bg-accent/[0.04] px-4 py-3.5 text-[14px] leading-relaxed text-white/70">
+      <div className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-widest text-accent">
         Note
-      </span>
+      </div>
       {children}
     </div>
   )
@@ -108,14 +110,38 @@ export function Step({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex gap-4 rounded-xl border border-white/[0.07] bg-white/[0.02] p-4">
+    <div className="flex gap-4 rounded-xl border border-white/[0.07] border-l-2 border-l-accent/40 bg-white/[0.02] p-4 transition-all duration-200 hover:border-accent/30 hover:bg-white/[0.03]">
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/[0.07] font-mono text-[13px] font-semibold text-accent">
         {n}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <h4 className="text-[15px] font-medium tracking-[-0.01em] text-white">{title}</h4>
         <p className="mt-1 text-[14px] leading-relaxed text-white/50">{children}</p>
       </div>
+    </div>
+  )
+}
+
+export function CodeBlock({ code, language = 'bash' }: { code: string; language?: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <div className="group relative my-4 overflow-hidden rounded-xl border border-white/[0.08] bg-[#070709]">
+      <div className="flex items-center justify-between border-b border-white/[0.06] bg-white/[0.02] px-4 py-2 font-mono text-[11px] text-white/40">
+        <span>{language}</span>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(code)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 2000)
+          }}
+          className="rounded border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[11px] text-white/50 hover:border-white/20 hover:text-white transition-colors"
+        >
+          {copied ? <span className="text-emerald-400 font-medium">Copied!</span> : 'Copy'}
+        </button>
+      </div>
+      <pre className="overflow-x-auto p-4 font-mono text-[13px] text-accent/90 leading-relaxed">
+        <code>{code}</code>
+      </pre>
     </div>
   )
 }
