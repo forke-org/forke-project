@@ -15,24 +15,34 @@ function ArticleCard({ article }: { article: Article }) {
   return (
     <Link
       href={`/docs/${article.slug}`}
-      className="group relative flex flex-col justify-between rounded-xl border border-white/[0.08] bg-[#070709] p-4 text-left transition-all duration-150 hover:border-accent/40 hover:bg-white/[0.02]"
+      className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-white/[0.08] bg-[#070709] p-4 text-left transition-all duration-200 hover:border-accent/30 hover:bg-[#0a0a0e]"
     >
-      <div>
+      {/* Soft background gradient */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-transparent transition-opacity duration-300 group-hover:from-accent/[0.05]"
+      />
+
+      {/* Faded background watermark logo/icon */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-2 -bottom-2 flex items-center justify-center text-white/[0.04] transition-all duration-300 group-hover:text-accent/[0.08] group-hover:scale-110 group-hover:-translate-y-1"
+      >
+        <Icon className="h-24 w-24 stroke-[1.2]" />
+      </div>
+
+      {/* Card Content - Text is primary */}
+      <div className="relative z-10">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-white/60 transition-colors group-hover:border-accent/30 group-hover:bg-accent/[0.08] group-hover:text-accent">
-              <Icon className="h-3.5 w-3.5" strokeWidth={1.8} />
-            </div>
-            <h3 className="truncate text-[14.5px] font-medium tracking-tight text-white transition-colors group-hover:text-accent">
-              {article.title}
-            </h3>
-          </div>
+          <h3 className="text-[14.5px] font-medium tracking-tight text-white transition-colors group-hover:text-accent">
+            {article.title}
+          </h3>
           <ArrowRight
-            className="h-4 w-4 shrink-0 text-white/20 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-accent opacity-60 group-hover:opacity-100"
+            className="h-4 w-4 shrink-0 text-white/20 transition-all duration-150 group-hover:translate-x-0.5 group-hover:text-accent opacity-50 group-hover:opacity-100"
             strokeWidth={1.7}
           />
         </div>
-        <p className="mt-2 text-[13px] leading-relaxed text-white/50 group-hover:text-white/65 line-clamp-2">
+        <p className="mt-2 text-[13px] leading-relaxed text-white/50 group-hover:text-white/65 line-clamp-2 pr-4">
           {article.description}
         </p>
       </div>
@@ -80,9 +90,15 @@ export default async function DocsHome() {
             const SectionIcon = section.icon
             return (
               <section key={section.id} id={section.id} className="scroll-mt-20">
-                <div className="rounded-2xl border border-white/[0.08] bg-[#09090b]/80 p-5 md:p-6 shadow-xl backdrop-blur-sm">
+                <div className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-[#09090b]/90 p-5 md:p-6 shadow-xl backdrop-blur-sm">
+                  {/* Soft top-left section glow */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -left-10 -top-10 h-40 w-40 rounded-full bg-accent/[0.03] blur-2xl"
+                  />
+
                   {/* Connected Section Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.06] pb-4 mb-4 gap-2">
+                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.06] pb-4 mb-4 gap-2">
                     <div className="flex items-center gap-3">
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/[0.08] text-accent">
                         <SectionIcon className="h-4 w-4" strokeWidth={1.8} />
@@ -96,17 +112,13 @@ export default async function DocsHome() {
                         </p>
                       </div>
                     </div>
-                    <Link
-                      href={`/docs/${section.articles[0].slug}`}
-                      className="group inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wider text-white/40 hover:text-white transition-colors self-start sm:self-auto"
-                    >
-                      View group{' '}
-                      <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-                    </Link>
+                    <span className="self-start sm:self-auto rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5 font-mono text-[11px] font-medium text-white/45">
+                      {section.articles.length} {section.articles.length === 1 ? 'article' : 'articles'}
+                    </span>
                   </div>
 
                   {/* Connected Article Grid */}
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="relative z-10 grid gap-3 sm:grid-cols-2">
                     {section.articles.map((a) => (
                       <ArticleCard key={a.slug} article={a} />
                     ))}
