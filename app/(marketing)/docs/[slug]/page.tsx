@@ -98,19 +98,12 @@ export default async function DocArticlePage({
                 </p>
               </div>
 
-              {/* Feature B: Read Time & Level Req Header Badges */}
-              {(article.readTime || article.levelReq) && (
+              {/* Feature B: Read Time Header Badge */}
+              {article.readTime && (
                 <div className="flex items-center gap-2 font-mono text-[11px] text-white/45">
-                  {article.readTime && (
-                    <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5">
-                      {article.readTime}
-                    </span>
-                  )}
-                  {article.levelReq && (
-                    <span className="rounded-full border border-accent/30 bg-accent/[0.08] px-2.5 py-0.5 text-accent font-medium">
-                      {article.levelReq}
-                    </span>
-                  )}
+                  <span className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-0.5">
+                    {article.readTime}
+                  </span>
                 </div>
               )}
             </div>

@@ -46,14 +46,10 @@ function ArticleCard({ article }: { article: Article }) {
           {article.description}
         </p>
 
-        {/* Feature B: Metadata Badges (Read Time & Level Requirement) */}
-        {(article.readTime || article.levelReq) && (
+        {/* Feature B: Metadata Badge (Read Time) */}
+        {article.readTime && (
           <div className="mt-3.5 flex items-center gap-2 pt-2 border-t border-white/[0.04] font-mono text-[11px] text-white/40">
-            {article.readTime && <span>{article.readTime}</span>}
-            {article.readTime && article.levelReq && <span>•</span>}
-            {article.levelReq && (
-              <span className="text-accent/75 font-medium">{article.levelReq}</span>
-            )}
+            <span>{article.readTime}</span>
           </div>
         )}
       </div>

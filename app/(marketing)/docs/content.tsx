@@ -55,7 +55,6 @@ export type Article = {
   description: string
   icon: LucideIcon
   readTime?: string
-  levelReq?: string
   /** Surfaced on the docs home grid. */
   popular?: boolean
   toc: TocItem[]
@@ -125,7 +124,6 @@ const welcome: Article = {
   description: 'Learn what Forke is and how to get from sign-up to your first payout.',
   icon: GraduationCap,
   readTime: '2 min read',
-  levelReq: 'All levels',
   popular: true,
   toc: [
     { id: 'overview', label: 'Overview' },
@@ -261,7 +259,6 @@ const coreConcepts: Article = {
   description: 'The vocabulary that shows up everywhere on Forke — bounties, escrow, levels, trust.',
   icon: Info,
   readTime: '3 min read',
-  levelReq: 'All levels',
   popular: true,
   toc: [
     { id: 'bounty', label: 'Bounty' },
@@ -367,7 +364,6 @@ const forDevelopers: Article = {
   description: 'The end-to-end journey from connecting GitHub to your first instant payout.',
   icon: Code2,
   readTime: '4 min read',
-  levelReq: 'Lvl 1+',
   popular: true,
   toc: [
     { id: 'signup', label: 'Sign up & connect GitHub' },
@@ -476,7 +472,6 @@ const forFounders: Article = {
   description: 'Post scoped tasks, fund escrow, and review a clean verdict instead of raw code.',
   icon: Building2,
   readTime: '4 min read',
-  levelReq: 'Founders',
   toc: [
     { id: 'apply', label: 'Apply & get approved' },
     { id: 'post', label: 'Post a task' },
@@ -579,7 +574,6 @@ const profile: Article = {
   description: 'Your public developer page, activity graph, completed task history, and badges.',
   icon: User,
   readTime: '2 min read',
-  levelReq: 'All levels',
   toc: [
     { id: 'public', label: 'Your public profile' },
     { id: 'what', label: "What's on it" },
@@ -630,7 +624,6 @@ const githubConnection: Article = {
   description: 'Why Forke needs GitHub access, what permissions are requested, and how PRs are mapped.',
   icon: GitFork,
   readTime: '3 min read',
-  levelReq: 'All levels',
   toc: [
     { id: 'why', label: 'Why GitHub' },
     { id: 'mirror', label: 'Mirror & branch model' },
@@ -693,7 +686,6 @@ const settings: Article = {
   description: 'Manage your profile details, notification preferences, and UPI ID for instant payouts.',
   icon: Settings,
   readTime: '2 min read',
-  levelReq: 'All levels',
   toc: [
     { id: 'upi', label: 'UPI payout ID' },
     { id: 'notifications', label: 'Notifications' },
@@ -738,7 +730,6 @@ const browsingTheFeed: Article = {
   description: 'How to filter tasks by tech stack, level, reward, and estimated completion time.',
   icon: ListChecks,
   readTime: '3 min read',
-  levelReq: 'Lvl 1+',
   popular: true,
   toc: [
     { id: 'feed', label: 'How the feed is built' },
@@ -806,7 +797,6 @@ const claiming: Article = {
   description: 'How task reservation works, the 20-minute timer, and what happens when you activate.',
   icon: MousePointerClick,
   readTime: '3 min read',
-  levelReq: 'Lvl 1+',
   toc: [
     { id: 'soft', label: 'Soft reservation' },
     { id: 'activate', label: 'Activating a claim' },
@@ -892,7 +882,6 @@ const branchWorkflow: Article = {
   description: 'How Forke creates dedicated working branches and why developers never push directly to main.',
   icon: GitBranch,
   readTime: '4 min read',
-  levelReq: 'Lvl 1+',
   toc: [
     { id: 'where', label: 'Where you work' },
     { id: 'scope', label: 'Stay in scope' },
@@ -957,7 +946,6 @@ const submittingPr: Article = {
   description: 'How to link your PR, run pre-submission validation, and trigger the automated review pipeline.',
   icon: GitPullRequest,
   readTime: '4 min read',
-  levelReq: 'Lvl 1+',
   popular: true,
   toc: [
     { id: 'template', label: 'FORKE_SUBMISSION.md' },
@@ -1035,7 +1023,6 @@ const reviewPipeline: Article = {
   description: 'Static analysis, AI test generation, security scanning, and owner verdict card generation.',
   icon: ShieldCheck,
   readTime: '5 min read',
-  levelReq: 'Lvl 5+',
   popular: true,
   toc: [
     { id: 'layers', label: 'The four layers' },
@@ -1137,7 +1124,6 @@ const verdictCard: Article = {
   description: 'How Forke translates code diffs into plain-English acceptance signals for task owners.',
   icon: Bot,
   readTime: '3 min read',
-  levelReq: 'Lvl 5+',
   toc: [
     { id: 'what', label: "What's on the card" },
     { id: 'decision', label: 'Approve or request changes' },
@@ -1179,7 +1165,6 @@ const acceptanceCriteria: Article = {
   description: 'Best practices for founders writing task specs that AI reviewers and developers can test against.',
   icon: ListChecks,
   readTime: '4 min read',
-  levelReq: 'Founders',
   toc: [
     { id: 'why', label: 'Why it matters' },
     { id: 'how', label: 'How to write them' },
@@ -1230,7 +1215,6 @@ const xpSystem: Article = {
   description: 'How XP is earned from completed tasks, speed bonuses, clean reviews, and streak multipliers.',
   icon: Trophy,
   readTime: '3 min read',
-  levelReq: 'Lvl 1+',
   popular: true,
   toc: [
     { id: 'earn', label: 'Earning XP' },
@@ -1315,7 +1299,6 @@ const levelsAndUnlocks: Article = {
   description: 'Full tier breakdown from Level 1 Newcomer to Level 25 Forke Legend and what each tier unlocks.',
   icon: Layers,
   readTime: '4 min read',
-  levelReq: 'Lvl 1-25',
   popular: true,
   toc: [
     { id: 'tiers', label: 'The five tiers' },
@@ -1405,7 +1388,6 @@ const skillTracks: Article = {
   description: 'Frontend, Backend, Fullstack, and DevOps tracks that gate specialized bounty categories.',
   icon: Code2,
   readTime: '3 min read',
-  levelReq: 'Lvl 6+',
   toc: [
     { id: 'tracks', label: 'Tracks & tiers' },
     { id: 'gating', label: 'How tags gate tasks' },
@@ -1459,7 +1441,6 @@ const trustScore: Article = {
   description: 'How deadline adherence, review pass rates, and dispute history calculate your Trust Score.',
   icon: Gauge,
   readTime: '4 min read',
-  levelReq: 'Lvl 1+',
   toc: [
     { id: 'what', label: 'What it measures' },
     { id: 'factors', label: 'Factors' },
@@ -1521,7 +1502,6 @@ const escrow: Article = {
   description: 'How owner funds are locked before a bounty goes live and how instant payouts trigger on approval.',
   icon: Wallet,
   readTime: '4 min read',
-  levelReq: 'All levels',
   popular: true,
   toc: [
     { id: 'lifecycle', label: 'Escrow lifecycle' },
@@ -1587,7 +1567,6 @@ const refundsDisputes: Article = {
   description: 'What happens when a task expires, how refund requests work, and the 48-hour dispute window.',
   icon: RefreshCw,
   readTime: '4 min read',
-  levelReq: 'All levels',
   toc: [
     { id: 'rejected', label: 'When work is rejected' },
     { id: 'disputes', label: 'Disputes' },
@@ -1633,7 +1612,6 @@ const policies: Article = {
   description: 'Rules against plagiarized code, ghosting claimed tasks, circumventing escrow, or alt accounts.',
   icon: ScrollText,
   readTime: '5 min read',
-  levelReq: 'All levels',
   toc: [
     { id: 'conduct', label: 'Code of conduct' },
     { id: 'legal', label: 'Legal documents' },
@@ -1679,7 +1657,6 @@ const support: Article = {
   description: 'How to open a support ticket, appeal a dispute, or reach the engineering team directly.',
   icon: LifeBuoy,
   readTime: '2 min read',
-  levelReq: 'All levels',
   toc: [{ id: 'contact', label: 'Contact us' }],
   body: (
     <Prose>
