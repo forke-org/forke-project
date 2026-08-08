@@ -69,6 +69,8 @@ export type Article = {
 export type DocSection = {
   id: string
   label: string
+  description: string
+  icon: LucideIcon
   /** Collapsed groups still render; this just sets the default open state. */
   defaultOpen?: boolean
   articles: Article[]
@@ -1671,37 +1673,51 @@ export const SECTIONS: DocSection[] = [
   {
     id: 'getting-started',
     label: 'Getting started',
+    description: 'Overview of Forke, core principles, and onboarding for developers & founders.',
+    icon: GraduationCap,
     defaultOpen: true,
     articles: [welcome, coreConcepts, forDevelopers, forFounders],
   },
   {
     id: 'account',
     label: 'Your account',
+    description: 'Manage your developer profile, proof of work, GitHub connection, and UPI payout settings.',
+    icon: User,
     articles: [profile, githubConnection, settings],
   },
   {
     id: 'bounties',
     label: 'Bounties & workflow',
+    description: 'Browse bounties, claim tasks, develop in Forke branches, and submit pull requests.',
+    icon: GitPullRequest,
     articles: [browsingTheFeed, claiming, branchWorkflow, submittingPr],
   },
   {
     id: 'review',
     label: 'Review & quality',
+    description: 'The 4-layer review pipeline, automated checks, AI verdict cards, and acceptance criteria.',
+    icon: ShieldCheck,
     articles: [reviewPipeline, verdictCard, acceptanceCriteria],
   },
   {
     id: 'progression',
     label: 'Levels, XP & trust',
+    description: 'How level progression, XP rewards, skill tracks, and trust scores unlock higher-tier bounties.',
+    icon: Trophy,
     articles: [xpSystem, levelsAndUnlocks, skillTracks, trustScore],
   },
   {
     id: 'payments',
     label: 'Payments & escrow',
+    description: 'Razorpay escrow deposits, instant UPI payout processing, refunds, and disputes.',
+    icon: Wallet,
     articles: [escrow, refundsDisputes],
   },
   {
     id: 'policies',
     label: 'Policies & support',
+    description: 'Platform rules, code of conduct, dispute resolution policies, and contact channels.',
+    icon: LifeBuoy,
     articles: [policies, support],
   },
 ]
