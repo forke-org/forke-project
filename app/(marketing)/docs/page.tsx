@@ -100,8 +100,12 @@ export default async function DocsHome() {
                   {/* Connected Section Header */}
                   <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/[0.06] pb-4 mb-4 gap-2">
                     <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent/25 bg-accent/[0.08] text-accent">
-                        <SectionIcon className="h-4 w-4" strokeWidth={1.8} />
+                      <div className="relative flex h-8 w-8 shrink-0 items-center justify-center">
+                        <div
+                          aria-hidden
+                          className="pointer-events-none absolute -inset-3.5 rounded-full bg-[radial-gradient(circle,_rgba(249,115,22,0.22)_0%,_transparent_70%)] blur-sm"
+                        />
+                        <SectionIcon className="relative z-10 h-4.5 w-4.5 text-accent" strokeWidth={1.8} />
                       </div>
                       <div>
                         <h2 className="font-mono text-[12px] font-semibold uppercase tracking-[0.1em] text-accent">
