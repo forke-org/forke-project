@@ -19,23 +19,10 @@ export default async function MessagesPage({
   const params = await searchParams
   const queryUserId = params.userId
 
-  // Fetch registered contacts from DB (excluding current user)
-  const contacts = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      image: users.image,
-      role: users.role,
-      githubUrl: users.githubUrl,
-    })
-    .from(users)
-    .where(ne(users.id, sessionUser.id))
-    .limit(10)
-
-  // If a specific userId was requested, fetch that contact if not already in the first 10
-  let targetUser = null
-  if (queryUserId) {
-    const res = await db
+  // Registered contacts and the optionally-requested target user are
+  // independent queries — fetch concurrently.
+  const [contacts, targetUserRes] = await Promise.all([
+    db
       .select({
         id: users.id,
         name: users.name,
@@ -44,10 +31,23 @@ export default async function MessagesPage({
         githubUrl: users.githubUrl,
       })
       .from(users)
-      .where(eq(users.id, queryUserId))
-      .limit(1)
-    targetUser = res[0] || null
-  }
+      .where(ne(users.id, sessionUser.id))
+      .limit(10),
+    queryUserId
+      ? db
+          .select({
+            id: users.id,
+            name: users.name,
+            image: users.image,
+            role: users.role,
+            githubUrl: users.githubUrl,
+          })
+          .from(users)
+          .where(eq(users.id, queryUserId))
+          .limit(1)
+      : Promise.resolve([]),
+  ])
+  const targetUser = targetUserRes[0] || null
 
   if (targetUser && !contacts.some(c => c.id === targetUser.id)) {
     contacts.unshift(targetUser)

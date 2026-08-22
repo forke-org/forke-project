@@ -164,18 +164,18 @@ export async function getLinkedAvatars(): Promise<{ github: string | null; googl
 
     // If either is missing, resolve them via legacy/linked tables and cache them in users table
     if (!githubAvatar || !googleAvatar) {
-      if (!githubAvatar) {
-        // GitHub avatar from the developers table
-        const ghProfile = await db.query.developers.findFirst({
-          where: eq(developers.userId, session.user.id),
-        })
-        if (ghProfile?.avatarUrl) {
-          githubAvatar = ghProfile.avatarUrl
-        }
+      // Independent of each other — fetch concurrently.
+      const [ghProfile, allAccounts] = await Promise.all([
+        !githubAvatar
+          ? db.query.developers.findFirst({ where: eq(developers.userId, session.user.id) })
+          : Promise.resolve(null),
+        db.select().from(accounts).where(eq(accounts.userId, session.user.id)),
+      ])
+      if (ghProfile?.avatarUrl) {
+        githubAvatar = ghProfile.avatarUrl
       }
 
       // Check accounts table for providers if still missing
-      const allAccounts = await db.select().from(accounts).where(eq(accounts.userId, session.user.id))
       for (const acct of allAccounts) {
         if (acct.provider === 'github' && !githubAvatar) {
           githubAvatar = `https://avatars.githubusercontent.com/u/${acct.providerAccountId}`

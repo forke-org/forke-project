@@ -30,41 +30,41 @@ export default async function SettingsPage() {
     console.error('Failed to get system specs:', e)
   }
 
-  // Fetch full user record
-  let dbUser = null
-  try {
-    dbUser = await db.query.users.findFirst({
-      where: eq(users.id, sessionUser.id)
-    })
-  } catch (e) {
-    console.error('Failed to fetch user:', e)
-    return <div className="text-white p-4">Failed to load user data</div>
-  }
-
-  if (!dbUser) return null
-
-  let ownerDetails = null
-  if (sessionUser.role === 'owner') {
-    try {
-      ownerDetails = await db.query.owners.findFirst({
-        where: eq(owners.id, sessionUser.id)
-      })
-    } catch (e) {
-      console.error('Failed to fetch owner details:', e)
-    }
-  }
-
-  // Fetch connected OAuth accounts
-  let connectedAccounts: string[] = []
-  try {
-    const userAccounts = await db
+  // Full user record, owner details, and connected accounts are all
+  // independent of each other (each keys only off sessionUser.id) — fetch
+  // concurrently, each still catching its own error exactly as before.
+  let dbUserError = false
+  const [dbUser, ownerDetails, connectedAccounts] = await Promise.all([
+    db.query.users
+      .findFirst({ where: eq(users.id, sessionUser.id) })
+      .catch((e) => {
+        console.error('Failed to fetch user:', e)
+        dbUserError = true
+        return null
+      }),
+    sessionUser.role === 'owner'
+      ? db.query.owners
+          .findFirst({ where: eq(owners.id, sessionUser.id) })
+          .catch((e) => {
+            console.error('Failed to fetch owner details:', e)
+            return null
+          })
+      : Promise.resolve(null),
+    db
       .select({ provider: accounts.provider })
       .from(accounts)
       .where(eq(accounts.userId, sessionUser.id))
-    connectedAccounts = userAccounts.map(a => a.provider)
-  } catch (e) {
-    console.error('Failed to fetch connected accounts:', e)
+      .then((rows) => rows.map((a) => a.provider))
+      .catch((e) => {
+        console.error('Failed to fetch connected accounts:', e)
+        return [] as string[]
+      }),
+  ])
+
+  if (dbUserError) {
+    return <div className="text-white p-4">Failed to load user data</div>
   }
+  if (!dbUser) return null
 
   // Fetch promotional subscription status
   let subscribedToPromotions = false

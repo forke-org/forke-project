@@ -1,5 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectsCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { AwsClient } from 'aws4fetch'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -18,9 +17,156 @@ export function isR2Configured(): boolean {
   )
 }
 
+export interface R2Credentials {
+  accessKeyId: string
+  secretAccessKey: string
+  endpoint: string
+  bucketName: string
+}
+
+export function getR2Credentials(): R2Credentials {
+  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
+  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
+  const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT
+  const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME
+
+  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
+    throw new Error('Cloudflare R2 is not fully configured. Missing environment variables.')
+  }
+
+  return { accessKeyId, secretAccessKey, endpoint, bucketName }
+}
+
+export function r2Client(creds: R2Credentials): AwsClient {
+  return new AwsClient({
+    accessKeyId: creds.accessKeyId,
+    secretAccessKey: creds.secretAccessKey,
+    service: 's3',
+    region: 'auto',
+  })
+}
+
+// Same key sanitization used everywhere below so keys stay consistent across
+// upload/presign/delete paths.
+function sanitizeKey(key: string): string {
+  return key.replace(/[^a-zA-Z0-9.-_/]/g, '_')
+}
+
+// Encode each path segment individually so slashes stay as folder separators.
+export function objectUrl(endpoint: string, bucketName: string, key: string): string {
+  const base = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint
+  const encodedKey = key.split('/').map(encodeURIComponent).join('/')
+  return `${base}/${bucketName}/${encodedKey}`
+}
+
+export interface R2ObjectSummary {
+  key: string
+  size: number
+  lastModified: string
+}
+
+/** Minimal extraction of <Contents> entries from an S3 ListObjectsV2 XML response. */
+function parseListObjectsXmlFull(xml: string): R2ObjectSummary[] {
+  const entries: R2ObjectSummary[] = []
+  const contentsBlocks = xml.match(/<Contents>[\s\S]*?<\/Contents>/g) || []
+  for (const block of contentsBlocks) {
+    const keyMatch = block.match(/<Key>([\s\S]*?)<\/Key>/)
+    const lastModifiedMatch = block.match(/<LastModified>([\s\S]*?)<\/LastModified>/)
+    const sizeMatch = block.match(/<Size>([\s\S]*?)<\/Size>/)
+    if (keyMatch && lastModifiedMatch) {
+      entries.push({
+        key: xmlUnescape(keyMatch[1]),
+        lastModified: lastModifiedMatch[1],
+        size: sizeMatch ? Number(sizeMatch[1]) : 0,
+      })
+    }
+  }
+  return entries
+}
+
+function xmlUnescape(value: string): string {
+  return value
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+}
+
+function xmlEscapeShared(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+}
+
+/** Lists objects in the R2 bucket, optionally filtered by key prefix. */
+export async function listObjects(prefix?: string): Promise<R2ObjectSummary[]> {
+  const creds = getR2Credentials()
+  const client = r2Client(creds)
+  const base = creds.endpoint.endsWith('/') ? creds.endpoint.slice(0, -1) : creds.endpoint
+
+  const params = new URLSearchParams({ 'list-type': '2' })
+  if (prefix) params.set('prefix', prefix)
+
+  const res = await client.fetch(`${base}/${creds.bucketName}?${params.toString()}`, { method: 'GET' })
+  if (!res.ok) {
+    throw new Error(`R2 list failed: ${res.status} ${await res.text()}`)
+  }
+  return parseListObjectsXmlFull(await res.text())
+}
+
+/** Uploads raw bytes to an exact key (no sanitization — used for known/already-valid keys). */
+export async function putObject(key: string, body: Buffer | string, contentType: string): Promise<void> {
+  const creds = getR2Credentials()
+  const client = r2Client(creds)
+  const res = await client.fetch(objectUrl(creds.endpoint, creds.bucketName, key), {
+    method: 'PUT',
+    body: body as BodyInit,
+    headers: { 'Content-Type': contentType },
+  })
+  if (!res.ok) {
+    throw new Error(`R2 upload failed: ${res.status} ${await res.text()}`)
+  }
+}
+
+/** Deletes a single object by its exact key (no sanitization). */
+export async function deleteObject(key: string): Promise<void> {
+  const creds = getR2Credentials()
+  const client = r2Client(creds)
+  const res = await client.fetch(objectUrl(creds.endpoint, creds.bucketName, key), { method: 'DELETE' })
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`R2 delete failed: ${res.status} ${await res.text()}`)
+  }
+}
+
+/** Batch-deletes objects by exact key (no sanitization). No-op on an empty list. */
+export async function deleteObjects(keys: string[]): Promise<void> {
+  if (keys.length === 0) return
+  const creds = getR2Credentials()
+  const client = r2Client(creds)
+  const base = creds.endpoint.endsWith('/') ? creds.endpoint.slice(0, -1) : creds.endpoint
+
+  const body =
+    '<Delete><Quiet>true</Quiet>' +
+    keys.map((k) => `<Object><Key>${xmlEscapeShared(k)}</Key></Object>`).join('') +
+    '</Delete>'
+
+  const res = await client.fetch(`${base}/${creds.bucketName}?delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/xml' },
+    body,
+  })
+  if (!res.ok) {
+    throw new Error(`R2 batch delete failed: ${res.status} ${await res.text()}`)
+  }
+}
+
 /**
  * Uploads a file buffer directly to Cloudflare R2 bucket.
- * 
+ *
  * @param fileBuffer The buffer content of the file.
  * @param key The destination path/key in the bucket (e.g., 'blogs/my-image.jpg').
  * @param contentType The MIME type of the file.
@@ -31,37 +177,27 @@ export async function uploadToR2(
   key: string,
   contentType: string
 ): Promise<string> {
-  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
-  const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT
-  const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME
+  const creds = getR2Credentials()
   const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL
-
-  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName || !publicUrl) {
+  if (!publicUrl) {
     throw new Error('Cloudflare R2 is not fully configured. Missing environment variables.')
   }
 
-  const s3Client = new S3Client({
-    region: 'auto',
-    endpoint: endpoint,
-    credentials: {
-      accessKeyId,
-      secretAccessKey,
+  const cleanKey = sanitizeKey(key)
+  const client = r2Client(creds)
+
+  const res = await client.fetch(objectUrl(creds.endpoint, creds.bucketName, cleanKey), {
+    method: 'PUT',
+    body: fileBuffer as BodyInit,
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=31536000, immutable',
     },
   })
 
-  // Sanitize the key but allow forward slashes for folders
-  const cleanKey = key.replace(/[^a-zA-Z0-9.-_/]/g, '_')
-
-  await s3Client.send(
-    new PutObjectCommand({
-      Bucket: bucketName,
-      Key: cleanKey,
-      Body: fileBuffer,
-      ContentType: contentType,
-      CacheControl: 'public, max-age=31536000, immutable',
-    })
-  )
+  if (!res.ok) {
+    throw new Error(`R2 upload failed: ${res.status} ${await res.text()}`)
+  }
 
   const basePublicUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl
   return `${basePublicUrl}/${cleanKey}`
@@ -85,44 +221,35 @@ export async function presignUpload(
   contentType: string,
   expiresIn = 300
 ): Promise<{ uploadUrl: string; publicUrl: string }> {
-  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
-  const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT
-  const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME
+  const creds = getR2Credentials()
   const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL
-
-  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName || !publicUrl) {
+  if (!publicUrl) {
     throw new Error('Cloudflare R2 is not fully configured. Missing environment variables.')
   }
 
-  const s3Client = new S3Client({
-    region: 'auto',
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
+  const cleanKey = sanitizeKey(key)
+  const client = r2Client(creds)
+
+  const urlToSign = new URL(objectUrl(creds.endpoint, creds.bucketName, cleanKey))
+  urlToSign.searchParams.set('X-Amz-Expires', String(expiresIn))
+
+  const signedRequest = await client.sign(urlToSign.toString(), {
+    method: 'PUT',
+    headers: {
+      'Content-Type': contentType,
+      'Cache-Control': 'public, max-age=31536000, immutable',
+    },
+    aws: { signQuery: true },
   })
 
-  // Same sanitization as uploadToR2 so keys stay consistent across both paths.
-  const cleanKey = key.replace(/[^a-zA-Z0-9.-_/]/g, '_')
-
-  const uploadUrl = await getSignedUrl(
-    s3Client,
-    new PutObjectCommand({
-      Bucket: bucketName,
-      Key: cleanKey,
-      ContentType: contentType,
-      CacheControl: 'public, max-age=31536000, immutable',
-    }),
-    { expiresIn }
-  )
-
   const basePublicUrl = publicUrl.endsWith('/') ? publicUrl.slice(0, -1) : publicUrl
-  return { uploadUrl, publicUrl: `${basePublicUrl}/${cleanKey}` }
+  return { uploadUrl: signedRequest.url, publicUrl: `${basePublicUrl}/${cleanKey}` }
 }
 
 /**
  * Deletes a file, either from Cloudflare R2 if it is an R2 URL,
  * or from the local public directory.
- * 
+ *
  * @param url The fully qualified URL or relative local path of the file.
  */
 export async function deleteFileByUrl(url: string): Promise<boolean> {
@@ -131,22 +258,13 @@ export async function deleteFileByUrl(url: string): Promise<boolean> {
   // 1. Check if it's an R2 URL
   const publicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL || ''
   const isR2Url = isR2Configured() && (
-    url.startsWith(publicUrl) || 
-    url.includes('.r2.dev/') || 
+    url.startsWith(publicUrl) ||
+    url.includes('.r2.dev/') ||
     url.includes('.r2.cloudflarestorage.com/')
   )
 
   if (isR2Url) {
     try {
-      const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
-      const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
-      const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT
-      const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME
-
-      if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
-        throw new Error('R2 credentials not fully configured.')
-      }
-
       // Extract key from the URL. The key is the path after the hostname/public URL
       // e.g. https://pub-xxxx.r2.dev/blogs/file.png -> blogs/file.png
       let key = ''
@@ -157,27 +275,14 @@ export async function deleteFileByUrl(url: string): Promise<boolean> {
         const parsedUrl = new URL(url)
         key = parsedUrl.pathname
       }
-      
+
       // Strip leading slash if any
       if (key.startsWith('/')) {
         key = key.slice(1)
       }
+      key = decodeURIComponent(key)
 
-      const s3Client = new S3Client({
-        region: 'auto',
-        endpoint: endpoint,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-      })
-
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: bucketName,
-          Key: key,
-        })
-      )
+      await deleteObject(key)
       return true
     } catch (e: any) {
       console.error('Failed to delete file from R2:', e.message || e)
@@ -210,31 +315,19 @@ export async function getPresignedDownloadUrl(
   key: string,
   expiresIn = 43200 // 12 hours in seconds
 ): Promise<string> {
-  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
-  const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT
-  const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME
+  const creds = getR2Credentials()
+  const cleanKey = sanitizeKey(key)
+  const client = r2Client(creds)
 
-  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
-    throw new Error('Cloudflare R2 is not fully configured.')
-  }
+  const urlToSign = new URL(objectUrl(creds.endpoint, creds.bucketName, cleanKey))
+  urlToSign.searchParams.set('X-Amz-Expires', String(expiresIn))
 
-  const s3Client = new S3Client({
-    region: 'auto',
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
+  const signedRequest = await client.sign(urlToSign.toString(), {
+    method: 'GET',
+    aws: { signQuery: true },
   })
 
-  const cleanKey = key.replace(/[^a-zA-Z0-9.-_/]/g, '_')
-
-  return await getSignedUrl(
-    s3Client,
-    new GetObjectCommand({
-      Bucket: bucketName,
-      Key: cleanKey,
-    }),
-    { expiresIn }
-  )
+  return signedRequest.url
 }
 
 /**
@@ -244,54 +337,16 @@ export async function getPresignedDownloadUrl(
 export async function cleanupExpiredBackups(
   maxAgeMs = 12 * 60 * 60 * 1000 // 12 hours
 ): Promise<string[]> {
-  const accessKeyId = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY
-  const endpoint = process.env.CLOUDFLARE_R2_ENDPOINT
-  const bucketName = process.env.CLOUDFLARE_R2_BUCKET_NAME
+  const entries = await listObjects('backups/')
 
-  if (!accessKeyId || !secretAccessKey || !endpoint || !bucketName) {
-    throw new Error('Cloudflare R2 is not fully configured.')
-  }
+  const now = Date.now()
+  const objectsToDelete = entries.filter((obj) => now - new Date(obj.lastModified).getTime() > maxAgeMs)
 
-  const s3Client = new S3Client({
-    region: 'auto',
-    endpoint,
-    credentials: { accessKeyId, secretAccessKey },
-  })
-
-  const listRes = await s3Client.send(
-    new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: 'backups/',
-    })
-  )
-
-  if (!listRes.Contents || listRes.Contents.length === 0) {
+  if (objectsToDelete.length === 0) {
     return []
   }
 
-  const now = Date.now()
-  const deletedKeys: string[] = []
-  
-  const objectsToDelete = listRes.Contents.filter((obj) => {
-    if (!obj.Key || !obj.LastModified) return false
-    const age = now - new Date(obj.LastModified).getTime()
-    return age > maxAgeMs
-  })
+  await deleteObjects(objectsToDelete.map((obj) => obj.key))
 
-  if (objectsToDelete.length > 0) {
-    await s3Client.send(
-      new DeleteObjectsCommand({
-        Bucket: bucketName,
-        Delete: {
-          Objects: objectsToDelete.map((obj) => ({ Key: obj.Key! })),
-        },
-      })
-    )
-    objectsToDelete.forEach((obj) => {
-      if (obj.Key) deletedKeys.push(obj.Key)
-    })
-  }
-
-  return deletedKeys
+  return objectsToDelete.map((obj) => obj.key)
 }

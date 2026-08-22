@@ -258,43 +258,59 @@ export default function AdminDashboard() {
   async function fetchData() {
     if (activeTab === null) return
     setIsLoading(true)
-    
-    // Fetch waitlist config
-    try {
-      const config = await getWaitlistConfig()
-      setWaitlistEnabled(config.enabled)
-      setWaitlistBypassPasswordState(config.bypassPassword || '')
-    } catch (e) {
-      console.error('Failed to fetch waitlist status:', e)
+
+    // Every fetch below is independent of the others, so they run concurrently
+    // instead of one-after-another — each one catches its own error so a
+    // single failed fetch doesn't block the rest from loading.
+    const tasks: Promise<void>[] = []
+
+    tasks.push(
+      getWaitlistConfig()
+        .then((config) => {
+          setWaitlistEnabled(config.enabled)
+          setWaitlistBypassPasswordState(config.bypassPassword || '')
+        })
+        .catch((e) => console.error('Failed to fetch waitlist status:', e))
+    )
+
+    if (activeTab === 'dashboard' || activeTab === 'owner-approval') {
+      tasks.push(
+        Promise.all([getPendingOwners(), getApprovedOwners()])
+          .then(([pending, approved]) => setOwnersList([...pending, ...approved]))
+          .catch((err) => console.error('Failed to fetch owners:', err))
+      )
+    }
+    if (activeTab === 'dashboard' || activeTab === 'developer-ban') {
+      tasks.push(
+        getDevelopers()
+          .then((devs) => setDevelopersList(devs))
+          .catch((err) => console.error('Failed to fetch developers:', err))
+      )
+    }
+    if (activeTab === 'dashboard' || activeTab === 'enquiries') {
+      tasks.push(
+        getEnquiries()
+          .then((res) => { if (res.success) setEnquiriesList(res.data || []) })
+          .catch((err) => console.error('Failed to fetch enquiries:', err))
+      )
+    }
+    if (activeTab === 'dashboard' || activeTab === 'subscribers') {
+      tasks.push(
+        getSubscribers()
+          .then((res) => { if (res.success) setSubscribersList(res.data || []) })
+          .catch((err) => console.error('Failed to fetch subscribers:', err))
+      )
+    }
+    if (activeTab === 'dashboard' || activeTab === 'admins') {
+      tasks.push(
+        getAdmins()
+          .then((res) => { if (res.success) setAdminsList(res.data || []) })
+          .catch((err) => console.error('Failed to fetch admins:', err))
+      )
     }
 
-    // Fetch lists
-    try {
-      if (activeTab === 'dashboard' || activeTab === 'owner-approval') {
-        const pending = await getPendingOwners()
-        const approved = await getApprovedOwners()
-        setOwnersList([...pending, ...approved])
-      }
-      if (activeTab === 'dashboard' || activeTab === 'developer-ban') {
-        const devs = await getDevelopers()
-        setDevelopersList(devs)
-      }
-      if (activeTab === 'dashboard' || activeTab === 'enquiries') {
-        const res = await getEnquiries()
-        if (res.success) setEnquiriesList(res.data || [])
-      }
-      if (activeTab === 'dashboard' || activeTab === 'subscribers') {
-        const res = await getSubscribers()
-        if (res.success) setSubscribersList(res.data || [])
-      }
-      if (activeTab === 'dashboard' || activeTab === 'admins') {
-        const res = await getAdmins()
-        if (res.success) setAdminsList(res.data || [])
-      }
-    } catch (err) {
-      console.error('Failed to fetch dashboard data:', err)
-    }
-    
+    await Promise.all(tasks)
+
     setIsLoading(false)
 
     // Silently refresh sidebar counts after data loads

@@ -90,47 +90,46 @@ export async function getTableDetails(tableName: string) {
   try {
     const validTable = await validateTableName(tableName)
 
-    // Fetch column details
-    const columnsResult: any = await db.execute(sql`
-      SELECT 
-        column_name, 
-        data_type, 
-        is_nullable, 
-        column_default
-      FROM information_schema.columns 
-      WHERE table_schema = 'public' 
-        AND table_name = ${validTable}
-      ORDER BY ordinal_position;
-    `)
-
-    // Fetch primary key columns
-    const pkResult: any = await db.execute(sql`
-      SELECT kcu.column_name
-      FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      WHERE tc.constraint_type = 'PRIMARY KEY' 
-        AND tc.table_name = ${validTable};
-    `)
+    // Columns, primary keys, and foreign keys are three independent
+    // catalog reads for the same table — run them concurrently.
+    const [columnsResult, pkResult, fkResult]: [any, any, any] = await Promise.all([
+      db.execute(sql`
+        SELECT
+          column_name,
+          data_type,
+          is_nullable,
+          column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = ${validTable}
+        ORDER BY ordinal_position;
+      `),
+      db.execute(sql`
+        SELECT kcu.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        WHERE tc.constraint_type = 'PRIMARY KEY'
+          AND tc.table_name = ${validTable};
+      `),
+      db.execute(sql`
+        SELECT kcu.column_name,
+               ccu.table_name  AS foreign_table,
+               ccu.column_name AS foreign_column
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        JOIN information_schema.constraint_column_usage ccu
+          ON ccu.constraint_name = tc.constraint_name
+          AND ccu.table_schema = tc.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_name = ${validTable};
+      `),
+    ])
 
     const primaryKeys = pkResult.map((row: any) => row.column_name as string)
-
-    // Fetch foreign key columns and what they reference
-    const fkResult: any = await db.execute(sql`
-      SELECT kcu.column_name,
-             ccu.table_name  AS foreign_table,
-             ccu.column_name AS foreign_column
-      FROM information_schema.table_constraints tc
-      JOIN information_schema.key_column_usage kcu
-        ON tc.constraint_name = kcu.constraint_name
-        AND tc.table_schema = kcu.table_schema
-      JOIN information_schema.constraint_column_usage ccu
-        ON ccu.constraint_name = tc.constraint_name
-        AND ccu.table_schema = tc.table_schema
-      WHERE tc.constraint_type = 'FOREIGN KEY'
-        AND tc.table_name = ${validTable};
-    `)
 
     const fkMap = new Map<string, string>()
     for (const row of fkResult) {
@@ -432,44 +431,56 @@ export async function deleteTableRecords(
 export async function getDatabaseOverview() {
   await ensureAdmin()
   try {
-    // 1. Get database name
-    const dbNameRes = await client.unsafe(`SELECT current_database() as dbname`)
-    const dbName = dbNameRes[0]?.dbname || 'neondb'
+    // Steps 1-5, 7 and 8 (below) are all independent single-value/list
+    // queries against different catalog views — run them concurrently
+    // instead of one round-trip at a time.
+    const [dbNameRes, dbSizeRes, connRes, tablesCountRes, versionRes, tableSizes, rolesRes, dbListRes] =
+      await Promise.all([
+        // 1. Get database name
+        client.unsafe(`SELECT current_database() as dbname`),
+        // 2. Get database size
+        client.unsafe(`SELECT pg_database_size(current_database()) as size`),
+        // 3. Get active connections
+        client.unsafe(`SELECT count(*)::int as active_conns FROM pg_stat_activity`),
+        // 4. Get total tables count in public schema
+        client.unsafe(`
+          SELECT count(*)::int as count
+          FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+        `),
+        // 5. Get database version
+        client.unsafe(`SELECT version()`),
+        // 6. Fetch all public tables and their sizes
+        client.unsafe(`
+          SELECT
+            relname AS name,
+            pg_total_relation_size(c.oid) AS total_bytes,
+            pg_relation_size(c.oid) AS table_bytes,
+            pg_indexes_size(c.oid) AS index_bytes
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relkind = 'r'
+          ORDER BY pg_total_relation_size(c.oid) DESC
+        `),
+        // 7. Get Roles List
+        client.unsafe(`
+          SELECT rolname as name FROM pg_roles WHERE rolcanlogin = true AND rolname NOT LIKE 'pg_%'
+        `),
+        // 8. Get Database List
+        client.unsafe(`
+          SELECT datname as name FROM pg_database WHERE datistemplate = false AND datname NOT LIKE 'pg_%'
+        `),
+      ])
 
-    // 2. Get database size
-    const dbSizeRes = await client.unsafe(`SELECT pg_database_size(current_database()) as size`)
+    const dbName = dbNameRes[0]?.dbname || 'neondb'
     const dbSizeBytes = Number(dbSizeRes[0]?.size || 0)
     const dbSizePretty = (dbSizeBytes / (1024 * 1024)).toFixed(2) + ' MB'
-
-    // 3. Get active connections
-    const connRes = await client.unsafe(`SELECT count(*)::int as active_conns FROM pg_stat_activity`)
     const activeConnections = connRes[0]?.active_conns || 1
-
-    // 4. Get total tables count in public schema
-    const tablesCountRes = await client.unsafe(`
-      SELECT count(*)::int as count 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-    `)
     const tablesCount = tablesCountRes[0]?.count || 0
-
-    // 5. Get database version
-    const versionRes = await client.unsafe(`SELECT version()`)
     const version = versionRes[0]?.version || 'PostgreSQL'
+    const rolesList = rolesRes.map((r: any) => r.name)
+    const dbList = dbListRes.map((d: any) => d.name)
 
-    // 6. Fetch all public tables and their sizes
-    const tableSizes = await client.unsafe(`
-      SELECT 
-        relname AS name, 
-        pg_total_relation_size(c.oid) AS total_bytes,
-        pg_relation_size(c.oid) AS table_bytes,
-        pg_indexes_size(c.oid) AS index_bytes
-      FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r'
-      ORDER BY pg_total_relation_size(c.oid) DESC
-    `)
-    
     // Fetch count for each table in public schema
     const tableDetails = await Promise.all(
       tableSizes.map(async (row: any) => {
@@ -495,18 +506,6 @@ export async function getDatabaseOverview() {
         }
       })
     )
-
-    // 7. Get Roles List
-    const rolesRes = await client.unsafe(`
-      SELECT rolname as name FROM pg_roles WHERE rolcanlogin = true AND rolname NOT LIKE 'pg_%'
-    `)
-    const rolesList = rolesRes.map((r: any) => r.name)
-
-    // 8. Get Database List
-    const dbListRes = await client.unsafe(`
-      SELECT datname as name FROM pg_database WHERE datistemplate = false AND datname NOT LIKE 'pg_%'
-    `)
-    const dbList = dbListRes.map((d: any) => d.name)
 
     // 9. Parse actual host and connection details from DATABASE_URL
     const dbUrl = process.env.DATABASE_URL || ''
@@ -542,59 +541,64 @@ export async function getDatabaseOverview() {
       console.error('Failed to parse connection URI:', err)
     }
 
-    // 10. Query server uptime
-    let uptime = 'N/A'
-    try {
-      const uptimeRes = await client.unsafe(`SELECT pg_postmaster_start_time() as start_time`)
-      const startTimeVal = uptimeRes[0]?.start_time
-      if (startTimeVal) {
-        const diffMs = Date.now() - new Date(startTimeVal).getTime()
-        const diffSecs = Math.floor(diffMs / 1000)
-        const diffMins = Math.floor(diffSecs / 60)
-        const diffHours = Math.floor(diffMins / 60)
-        const diffDays = Math.floor(diffHours / 24)
-        
-        if (diffDays > 0) {
-          uptime = `${diffDays}d ${diffHours % 24}h`
-        } else if (diffHours > 0) {
-          uptime = `${diffHours}h ${diffMins % 60}m`
-        } else {
-          uptime = `${diffMins}m`
+    // 10 & 11 are each independent, soft-failing (default on error) stats
+    // reads — run all three underlying queries concurrently.
+    const [uptime, { cacheHitRatio, commits }] = await Promise.all([
+      // 10. Query server uptime
+      (async () => {
+        try {
+          const uptimeRes = await client.unsafe(`SELECT pg_postmaster_start_time() as start_time`)
+          const startTimeVal = uptimeRes[0]?.start_time
+          if (!startTimeVal) return 'N/A'
+          const diffMs = Date.now() - new Date(startTimeVal).getTime()
+          const diffSecs = Math.floor(diffMs / 1000)
+          const diffMins = Math.floor(diffSecs / 60)
+          const diffHours = Math.floor(diffMins / 60)
+          const diffDays = Math.floor(diffHours / 24)
+
+          if (diffDays > 0) return `${diffDays}d ${diffHours % 24}h`
+          if (diffHours > 0) return `${diffHours}h ${diffMins % 60}m`
+          return `${diffMins}m`
+        } catch (e) {
+          console.error('Failed to query server uptime:', e)
+          return 'N/A'
         }
-      }
-    } catch (e) {
-      console.error('Failed to query server uptime:', e)
-    }
+      })(),
+      // 11. Query Cache Hit Ratio & Transactions Commits count
+      (async () => {
+        try {
+          const [cacheRes, xactRes] = await Promise.all([
+            client.unsafe(`
+              SELECT
+                COALESCE(round(sum(blks_hit) * 100.0 / nullif(sum(blks_hit) + sum(blks_read), 0), 2), 100.0) as hit_ratio
+              FROM pg_stat_database
+              WHERE datname = current_database()
+            `),
+            client.unsafe(`
+              SELECT
+                sum(xact_commit) as commits
+              FROM pg_stat_database
+              WHERE datname = current_database()
+            `),
+          ])
+          const cacheHitRatio = Number(cacheRes[0]?.hit_ratio || 100).toFixed(2) + '%'
 
-    // 11. Query Cache Hit Ratio & Transactions Commits count
-    let cacheHitRatio = '100.00%'
-    let commits = '0'
-    try {
-      const cacheRes = await client.unsafe(`
-        SELECT 
-          COALESCE(round(sum(blks_hit) * 100.0 / nullif(sum(blks_hit) + sum(blks_read), 0), 2), 100.0) as hit_ratio
-        FROM pg_stat_database 
-        WHERE datname = current_database()
-      `)
-      cacheHitRatio = Number(cacheRes[0]?.hit_ratio || 100).toFixed(2) + '%'
-
-      const xactRes = await client.unsafe(`
-        SELECT 
-          sum(xact_commit) as commits
-        FROM pg_stat_database 
-        WHERE datname = current_database()
-      `)
-      const commitsCount = Number(xactRes[0]?.commits || 0)
-      if (commitsCount > 1000000) {
-        commits = (commitsCount / 1000000).toFixed(1) + 'M'
-      } else if (commitsCount > 1000) {
-        commits = (commitsCount / 1000).toFixed(0) + 'K'
-      } else {
-        commits = commitsCount.toString()
-      }
-    } catch (e) {
-      console.error('Failed to query cache ratio/commits:', e)
-    }
+          const commitsCount = Number(xactRes[0]?.commits || 0)
+          let commits: string
+          if (commitsCount > 1000000) {
+            commits = (commitsCount / 1000000).toFixed(1) + 'M'
+          } else if (commitsCount > 1000) {
+            commits = (commitsCount / 1000).toFixed(0) + 'K'
+          } else {
+            commits = commitsCount.toString()
+          }
+          return { cacheHitRatio, commits }
+        } catch (e) {
+          console.error('Failed to query cache ratio/commits:', e)
+          return { cacheHitRatio: '100.00%', commits: '0' }
+        }
+      })(),
+    ])
 
     return {
       success: true,
@@ -890,74 +894,73 @@ export async function executeSQLQuery(query: string) {
 export async function getDatabaseMetrics() {
   await ensureAdmin()
   try {
-    // 1. Get connections metrics
-    const connRes = await client.unsafe(`
-      SELECT 
-        count(*)::int as total,
-        count(*) FILTER (where state = 'active' AND query NOT LIKE '%pg_stat_activity%')::int as active,
-        count(*) FILTER (where state = 'idle')::int as idle,
-        count(*) FILTER (where wait_event IS NOT NULL AND state = 'active')::int as waiting
-      FROM pg_stat_activity
-    `)
+    // All 8 stat queries below are independent of one another — run them
+    // concurrently instead of one round-trip at a time.
+    const [connRes, maxConnRes, rowsRes, deadlocksRes, cacheRes, dbSizeRes, allDbsSizeRes, xactRes] =
+      await Promise.all([
+        // 1. Get connections metrics
+        client.unsafe(`
+          SELECT
+            count(*)::int as total,
+            count(*) FILTER (where state = 'active' AND query NOT LIKE '%pg_stat_activity%')::int as active,
+            count(*) FILTER (where state = 'idle')::int as idle,
+            count(*) FILTER (where wait_event IS NOT NULL AND state = 'active')::int as waiting
+          FROM pg_stat_activity
+        `),
+        // Get max connections
+        client.unsafe(`SHOW max_connections`),
+        // 2. Get rows operations metrics
+        client.unsafe(`
+          SELECT
+            sum(tup_inserted)::bigint as inserted,
+            sum(tup_updated)::bigint as updated,
+            sum(tup_deleted)::bigint as deleted
+          FROM pg_stat_database
+          WHERE datname = current_database()
+        `),
+        // 3. Get deadlocks count
+        client.unsafe(`
+          SELECT deadlocks::int FROM pg_stat_database WHERE datname = current_database()
+        `),
+        // 4. Get cache hit rate
+        client.unsafe(`
+          SELECT
+            COALESCE(round(sum(blks_hit) * 100.0 / nullif(sum(blks_hit) + sum(blks_read), 0), 2), 100.0) as hit_ratio
+          FROM pg_stat_database
+          WHERE datname = current_database()
+        `),
+        // 5. Get database size in MB
+        client.unsafe(`SELECT pg_database_size(current_database()) as size`),
+        // 6. Get all databases size in MB
+        client.unsafe(`
+          SELECT sum(pg_database_size(datname))::bigint as all_dbs_size
+          FROM pg_database
+          WHERE datistemplate = false
+        `),
+        // 7. Get transaction commits and rollbacks
+        client.unsafe(`
+          SELECT
+            COALESCE(xact_commit, 0)::bigint as commits,
+            COALESCE(xact_rollback, 0)::bigint as rollbacks
+          FROM pg_stat_database
+          WHERE datname = current_database()
+        `),
+      ])
+
     const active = connRes[0]?.active || 0
     const idle = connRes[0]?.idle || 0
     const total = connRes[0]?.total || 0
     const waiting = connRes[0]?.waiting || 0
-
-    // Get max connections
-    const maxConnRes = await client.unsafe(`SHOW max_connections`)
     const maxConns = Number(maxConnRes[0]?.max_connections || 100)
-
-    // 2. Get rows operations metrics
-    const rowsRes = await client.unsafe(`
-      SELECT 
-        sum(tup_inserted)::bigint as inserted,
-        sum(tup_updated)::bigint as updated,
-        sum(tup_deleted)::bigint as deleted
-      FROM pg_stat_database
-      WHERE datname = current_database()
-    `)
     const inserted = Number(rowsRes[0]?.inserted || 0)
     const updated = Number(rowsRes[0]?.updated || 0)
     const deleted = Number(rowsRes[0]?.deleted || 0)
-
-    // 3. Get deadlocks count
-    const deadlocksRes = await client.unsafe(`
-      SELECT deadlocks::int FROM pg_stat_database WHERE datname = current_database()
-    `)
     const deadlocks = deadlocksRes[0]?.deadlocks || 0
-
-    // 4. Get cache hit rate
-    const cacheRes = await client.unsafe(`
-      SELECT 
-        COALESCE(round(sum(blks_hit) * 100.0 / nullif(sum(blks_hit) + sum(blks_read), 0), 2), 100.0) as hit_ratio
-      FROM pg_stat_database 
-      WHERE datname = current_database()
-    `)
     const cacheHitRate = Number(cacheRes[0]?.hit_ratio || 100)
-
-    // 5. Get database size in MB
-    const dbSizeRes = await client.unsafe(`SELECT pg_database_size(current_database()) as size`)
     const dbSizeBytes = Number(dbSizeRes[0]?.size || 0)
     const dbSizeMb = Number((dbSizeBytes / (1024 * 1024)).toFixed(2))
-
-    // 6. Get all databases size in MB
-    const allDbsSizeRes = await client.unsafe(`
-      SELECT sum(pg_database_size(datname))::bigint as all_dbs_size 
-      FROM pg_database 
-      WHERE datistemplate = false
-    `)
     const allDbsSizeBytes = Number(allDbsSizeRes[0]?.all_dbs_size || dbSizeBytes)
     const allDbsSizeMb = Number((allDbsSizeBytes / (1024 * 1024)).toFixed(2))
-
-    // 7. Get transaction commits and rollbacks
-    const xactRes = await client.unsafe(`
-      SELECT 
-        COALESCE(xact_commit, 0)::bigint as commits,
-        COALESCE(xact_rollback, 0)::bigint as rollbacks
-      FROM pg_stat_database 
-      WHERE datname = current_database()
-    `)
     const xactCommits = Number(xactRes[0]?.commits || 0)
     const xactRollbacks = Number(xactRes[0]?.rollbacks || 0)
 
@@ -1070,32 +1073,44 @@ export async function getDatabaseQueryPerformance() {
 export async function getDatabaseAdvisors() {
   await ensureAdmin()
   try {
-    // 1. Fetch all user tables in public schema
-    const tablesRes = await client.unsafe(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
-    `)
-    const tables = tablesRes.map((t: any) => t.table_name as string)
+    // All 5 queries below are independent reads describing different facets
+    // of the schema — run them concurrently instead of one at a time.
+    const [tablesRes, indexesRes, columnsRes, rlsRes, activeConnsRes] = await Promise.all([
+      // 1. Fetch all user tables in public schema
+      client.unsafe(`
+        SELECT table_name
+        FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      `),
+      // 2. Fetch all indexes in public schema
+      client.unsafe(`
+        SELECT tablename, indexdef
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+      `),
+      // 3. Fetch all columns in public schema
+      client.unsafe(`
+        SELECT table_name, column_name, data_type
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+      `),
+      // Security check source: RLS status per table
+      client.unsafe(`
+        SELECT relname as name, relrowsecurity as rls
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relkind = 'r'
+      `),
+      // Generic system health advisor source
+      client.unsafe(`SELECT count(*)::int as count FROM pg_stat_activity`),
+    ])
 
-    // 2. Fetch all indexes in public schema
-    const indexesRes = await client.unsafe(`
-      SELECT tablename, indexdef 
-      FROM pg_indexes 
-      WHERE schemaname = 'public'
-    `)
+    const tables = tablesRes.map((t: any) => t.table_name as string)
     const indexes = indexesRes.map((idx: any) => ({
       table: idx.tablename as string,
       def: idx.indexdef as string
     }))
 
-    // 3. Fetch all columns in public schema
-    const columnsRes = await client.unsafe(`
-      SELECT table_name, column_name, data_type 
-      FROM information_schema.columns 
-      WHERE table_schema = 'public'
-    `)
-    
     const recommendations: Array<{
       id: string
       type: 'index' | 'security' | 'performance'
@@ -1105,13 +1120,6 @@ export async function getDatabaseAdvisors() {
     }> = []
 
     // Security check: Check if RLS is enabled on all tables
-    const rlsRes = await client.unsafe(`
-      SELECT relname as name, relrowsecurity as rls
-      FROM pg_class c
-      JOIN pg_namespace n ON n.oid = c.relnamespace
-      WHERE n.nspname = 'public' AND c.relkind = 'r'
-    `)
-
     for (const tableRow of rlsRes) {
       const name = tableRow.name as string
       const rls = tableRow.rls as boolean
@@ -1161,7 +1169,6 @@ export async function getDatabaseAdvisors() {
     }
 
     // Generic system health advisor:
-    const activeConnsRes = await client.unsafe(`SELECT count(*)::int as count FROM pg_stat_activity`)
     const activeConns = activeConnsRes[0]?.count || 0
     if (activeConns > 50) {
       recommendations.push({

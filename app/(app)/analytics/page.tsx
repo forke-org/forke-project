@@ -26,14 +26,33 @@ export default async function AnalyticsPage() {
       ? eq(tasks.clientId, sessionUser.id)
       : eq(tasks.claimantId, sessionUser.id)
 
-    const res = await db
-      .select({
-        status: tasks.status,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(tasks)
-      .where(whereClause)
-      .groupBy(tasks.status)
+    // Monthly breakdown – last 6 months
+    const sixMonthsAgo = new Date()
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
+    sixMonthsAgo.setDate(1)
+    sixMonthsAgo.setHours(0, 0, 0, 0)
+
+    const [res, monthlyRes] = await Promise.all([
+      db
+        .select({
+          status: tasks.status,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(tasks)
+        .where(whereClause)
+        .groupBy(tasks.status),
+      db
+        .select({
+          month: sql<string>`to_char(created_at, 'Mon')`,
+          monthNum: sql<number>`extract(month from created_at)::int`,
+          count: sql<number>`count(*)::int`,
+          budget: sql<number>`coalesce(sum(budget),0)::int`,
+        })
+        .from(tasks)
+        .where(and(whereClause, gte(tasks.createdAt, sixMonthsAgo)))
+        .groupBy(sql`to_char(created_at, 'Mon'), extract(month from created_at)`)
+        .orderBy(sql`extract(month from created_at)`),
+    ])
 
     for (const r of res) {
       dbStats.totalCount += r.count
@@ -42,24 +61,6 @@ export default async function AnalyticsPage() {
       if (r.status === 'submitted') dbStats.submittedCount = r.count
       if (r.status === 'claimed')   dbStats.claimedCount   = r.count
     }
-
-    // Monthly breakdown – last 6 months
-    const sixMonthsAgo = new Date()
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5)
-    sixMonthsAgo.setDate(1)
-    sixMonthsAgo.setHours(0, 0, 0, 0)
-
-    const monthlyRes = await db
-      .select({
-        month: sql<string>`to_char(created_at, 'Mon')`,
-        monthNum: sql<number>`extract(month from created_at)::int`,
-        count: sql<number>`count(*)::int`,
-        budget: sql<number>`coalesce(sum(budget),0)::int`,
-      })
-      .from(tasks)
-      .where(and(whereClause, gte(tasks.createdAt, sixMonthsAgo)))
-      .groupBy(sql`to_char(created_at, 'Mon'), extract(month from created_at)`)
-      .orderBy(sql`extract(month from created_at)`)
 
     monthlyData = monthlyRes.map(r => ({ month: r.month, count: r.count, budget: r.budget }))
   } catch (e) {

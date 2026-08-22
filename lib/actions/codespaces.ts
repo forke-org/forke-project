@@ -9,6 +9,13 @@ import { auth } from '@/auth'
  * Invites the developer to the private mirror repository of a task.
  */
 export async function inviteDeveloperToMirror(taskId: string, developerUserId: string) {
+  // Developer lookup only depends on developerUserId, not on the task/repo/
+  // owner chain below — kick it off now so it resolves in parallel with that
+  // chain instead of only starting once the chain finishes.
+  const devResultPromise = db.query.developers.findFirst({
+    where: eq(developers.userId, developerUserId),
+  })
+
   // 1. Get task and mirror repo details
   const taskResult = await db.query.tasks.findFirst({
     where: eq(tasks.id, taskId),
@@ -33,9 +40,7 @@ export async function inviteDeveloperToMirror(taskId: string, developerUserId: s
   }
 
   // 3. Get developer's GitHub username
-  const devResult = await db.query.developers.findFirst({
-    where: eq(developers.userId, developerUserId),
-  })
+  const devResult = await devResultPromise
   if (!devResult || !devResult.username) {
     throw new Error('Developer GitHub username not found.')
   }
@@ -81,6 +86,11 @@ export async function inviteDeveloperToMirror(taskId: string, developerUserId: s
  * Checks if the developer has accepted the collaborator invite for the mirror repository.
  */
 export async function checkInvitationStatus(taskId: string, developerUserId: string) {
+  // Independent of the task/repo chain below — kick off in parallel.
+  const devResultPromise = db.query.developers.findFirst({
+    where: eq(developers.userId, developerUserId),
+  })
+
   const taskResult = await db.query.tasks.findFirst({
     where: eq(tasks.id, taskId),
   })
@@ -91,9 +101,7 @@ export async function checkInvitationStatus(taskId: string, developerUserId: str
   })
   if (!repoResult) return { accepted: false }
 
-  const devResult = await db.query.developers.findFirst({
-    where: eq(developers.userId, developerUserId),
-  })
+  const devResult = await devResultPromise
   if (!devResult || !devResult.username || !devResult.accessToken) return { accepted: false }
 
   // Check if developer is collaborator
@@ -113,6 +121,11 @@ export async function checkInvitationStatus(taskId: string, developerUserId: str
  * Creates the developer workspace branch and spins up the GitHub Codespace.
  */
 export async function createWorkspaceBranchAndCodespace(taskId: string, developerUserId: string) {
+  // Independent of the task/repo chain below — kick off in parallel.
+  const devResultPromise = db.query.developers.findFirst({
+    where: eq(developers.userId, developerUserId),
+  })
+
   // 1. Fetch task and repo details
   const taskResult = await db.query.tasks.findFirst({
     where: eq(tasks.id, taskId),
@@ -129,9 +142,7 @@ export async function createWorkspaceBranchAndCodespace(taskId: string, develope
   }
 
   // 2. Fetch tokens
-  const devResult = await db.query.developers.findFirst({
-    where: eq(developers.userId, developerUserId),
-  })
+  const devResult = await devResultPromise
   if (!devResult || !devResult.accessToken || !devResult.username) {
     throw new Error('Developer GitHub access credentials not found.')
   }
@@ -219,6 +230,11 @@ export async function createWorkspaceBranchAndCodespace(taskId: string, develope
  * Deletes the Codespace and removes the developer from the repo collaborators when complete or abandoned.
  */
 export async function cleanupWorkspace(taskId: string, developerUserId: string) {
+  // Independent of the task/repo chain below — kick off in parallel.
+  const devResultPromise = db.query.developers.findFirst({
+    where: eq(developers.userId, developerUserId),
+  })
+
   // 1. Fetch task and repo details
   const taskResult = await db.query.tasks.findFirst({
     where: eq(tasks.id, taskId),
@@ -231,9 +247,7 @@ export async function cleanupWorkspace(taskId: string, developerUserId: string) 
   if (!repoResult) return
 
   // 2. Fetch credentials
-  const devResult = await db.query.developers.findFirst({
-    where: eq(developers.userId, developerUserId),
-  })
+  const devResult = await devResultPromise
   if (!devResult || !devResult.username || !devResult.accessToken) return
 
   const ownerResult = await db.query.sandboxUsers.findFirst({

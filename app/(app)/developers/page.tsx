@@ -21,45 +21,51 @@ export default async function DevelopersPage() {
 
   if (!sessionUser) return null
 
-  // Fetch all users with role 'developer' ordered by level desc, xp desc
-  const developersList = await db
-    .select()
-    .from(users)
-    .where(eq(users.role, 'developer'))
-    .orderBy(desc(users.level), desc(users.xp))
-
   // Fetch tasks claimed by these developers that were posted by the current owner
   const isOwner = sessionUser.role === 'owner'
   let ownerClaimedTasks: any[] = []
   let unreadCounts: Record<string, number> = {}
 
-  if (isOwner) {
-    ownerClaimedTasks = await db
+  // Fetch all users with role 'developer', and (if owner) the owner-scoped
+  // claimed-tasks + unread-message-count queries — all independent, so they
+  // run concurrently instead of one round-trip at a time.
+  const [developersList, ownerClaimedTasksResult, unreadMsgs] = await Promise.all([
+    db
       .select()
-      .from(tasks)
-      .where(
-        and(
-          eq(tasks.clientId, sessionUser.id),
-          sql`${tasks.claimantId} IS NOT NULL`
-        )
-      )
-      .orderBy(desc(tasks.createdAt))
+      .from(users)
+      .where(eq(users.role, 'developer'))
+      .orderBy(desc(users.level), desc(users.xp)),
+    isOwner
+      ? db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.clientId, sessionUser.id),
+              sql`${tasks.claimantId} IS NOT NULL`
+            )
+          )
+          .orderBy(desc(tasks.createdAt))
+      : Promise.resolve([]),
+    isOwner
+      ? db
+          .select({
+            senderId: messages.senderId,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(messages)
+          .where(
+            and(
+              eq(messages.receiverId, sessionUser.id),
+              eq(messages.isSeen, false)
+            )
+          )
+          .groupBy(messages.senderId)
+      : Promise.resolve([]),
+  ])
+  ownerClaimedTasks = ownerClaimedTasksResult
 
-    // Fetch unread messages count for this owner grouped by sender
-    const unreadMsgs = await db
-      .select({
-        senderId: messages.senderId,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(messages)
-      .where(
-        and(
-          eq(messages.receiverId, sessionUser.id),
-          eq(messages.isSeen, false)
-        )
-      )
-      .groupBy(messages.senderId)
-    
+  if (isOwner) {
     unreadMsgs.forEach(item => {
       unreadCounts[item.senderId] = item.count
     })

@@ -86,8 +86,10 @@ export async function getDevelopers() {
 
 export async function approveOwner(userId: string) {
   await ensureAdmin()
-  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true, email: true } })
-  const o = await db.query.owners.findFirst({ where: eq(owners.id, userId), columns: { firstName: true, contactEmail: true } })
+  const [u, o] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true, email: true } }),
+    db.query.owners.findFirst({ where: eq(owners.id, userId), columns: { firstName: true, contactEmail: true } }),
+  ])
   await db.update(users).set({ isApproved: true }).where(eq(users.id, userId))
   await logAudit({ category: 'owner', action: 'owner.approved', target: u?.name || u?.email || userId })
 
@@ -107,8 +109,10 @@ export async function declineOwner(userId: string, reason: string) {
   if (!cleanReason) {
     return { success: false, error: 'A decline reason is required.' }
   }
-  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true, email: true } })
-  const o = await db.query.owners.findFirst({ where: eq(owners.id, userId), columns: { firstName: true, contactEmail: true } })
+  const [u, o] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true, email: true } }),
+    db.query.owners.findFirst({ where: eq(owners.id, userId), columns: { firstName: true, contactEmail: true } }),
+  ])
 
   // Notify BEFORE deletion (the user row is about to be removed)
   const toEmail = o?.contactEmail || u?.email
@@ -126,8 +130,10 @@ export async function declineOwner(userId: string, reason: string) {
 
 export async function toggleOwnerBan(userId: string, shouldBan: boolean) {
   await ensureAdmin()
-  const u = await db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true, email: true } })
-  const o = await db.query.owners.findFirst({ where: eq(owners.id, userId), columns: { firstName: true, contactEmail: true } })
+  const [u, o] = await Promise.all([
+    db.query.users.findFirst({ where: eq(users.id, userId), columns: { name: true, email: true } }),
+    db.query.owners.findFirst({ where: eq(owners.id, userId), columns: { firstName: true, contactEmail: true } }),
+  ])
   await db.update(users).set({ isBanned: shouldBan }).where(eq(users.id, userId))
   await logAudit({
     category: 'owner',
@@ -175,8 +181,10 @@ import {
 
 export async function getWaitlistConfig() {
   await ensureAdmin()
-  const enabled = await isWaitlistEnabled()
-  const bypassPassword = await getWaitlistBypassPassword()
+  const [enabled, bypassPassword] = await Promise.all([
+    isWaitlistEnabled(),
+    getWaitlistBypassPassword(),
+  ])
   return { enabled, bypassPassword }
 }
 

@@ -84,17 +84,16 @@ export async function registerDeveloperWithCredentials(formData: any) {
   }
 
   try {
-    const existingUserByEmail = await db.query.users.findFirst({
-      where: eq(users.email, email)
-    })
+    // Independent existence checks — fetch concurrently, but keep the same
+    // "email conflict reported before username conflict" priority as before.
+    const [existingUserByEmail, existingUserByUsername] = await Promise.all([
+      db.query.users.findFirst({ where: eq(users.email, email) }),
+      db.query.users.findFirst({ where: eq(users.username, username) }),
+    ])
 
     if (existingUserByEmail) {
       return { success: false, error: 'A user with this email already exists.' }
     }
-
-    const existingUserByUsername = await db.query.users.findFirst({
-      where: eq(users.username, username)
-    })
 
     if (existingUserByUsername) {
       return { success: false, error: 'This username is already taken. Please choose another.' }

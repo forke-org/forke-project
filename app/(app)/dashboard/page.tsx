@@ -64,15 +64,24 @@ export default async function DashboardPage() {
 
   try {
     if (user?.role === 'owner') {
-      const statsResult = await db
-        .select({
-          status: tasks.status,
-          count: sql<number>`count(*)::int`,
-          sumBudget: sql<number>`sum(${tasks.budget})::int`,
-        })
-        .from(tasks)
-        .where(eq(tasks.clientId, user.id))
-        .groupBy(tasks.status)
+      const [statsResult, ownerTurnaround] = await Promise.all([
+        db
+          .select({
+            status: tasks.status,
+            count: sql<number>`count(*)::int`,
+            sumBudget: sql<number>`sum(${tasks.budget})::int`,
+          })
+          .from(tasks)
+          .where(eq(tasks.clientId, user.id))
+          .groupBy(tasks.status),
+        db
+          .select({
+            avgHours: sql<number>`avg(extract(epoch from (${submissions.createdAt} - ${tasks.createdAt})) / 3600)::float`,
+          })
+          .from(tasks)
+          .innerJoin(submissions, eq(submissions.taskId, tasks.id))
+          .where(eq(tasks.clientId, user.id)),
+      ])
 
       for (const row of statsResult) {
         if (row.status === 'approved') {
@@ -83,25 +92,26 @@ export default async function DashboardPage() {
           ownerStats.totalEscrow += row.sumBudget ? Math.floor(row.sumBudget / 100) : 0
         }
       }
-
-      const ownerTurnaround = await db
-        .select({
-          avgHours: sql<number>`avg(extract(epoch from (${submissions.createdAt} - ${tasks.createdAt})) / 3600)::float`,
-        })
-        .from(tasks)
-        .innerJoin(submissions, eq(submissions.taskId, tasks.id))
-        .where(eq(tasks.clientId, user.id))
       avgTurnaroundHours = ownerTurnaround[0]?.avgHours ?? null
     } else if (user?.role === 'developer') {
-      const statsResult = await db
-        .select({
-          status: tasks.status,
-          count: sql<number>`count(*)::int`,
-          sumBudget: sql<number>`sum(${tasks.budget})::int`,
-        })
-        .from(tasks)
-        .where(eq(tasks.claimantId, user.id))
-        .groupBy(tasks.status)
+      const [statsResult, devTurnaround] = await Promise.all([
+        db
+          .select({
+            status: tasks.status,
+            count: sql<number>`count(*)::int`,
+            sumBudget: sql<number>`sum(${tasks.budget})::int`,
+          })
+          .from(tasks)
+          .where(eq(tasks.claimantId, user.id))
+          .groupBy(tasks.status),
+        db
+          .select({
+            avgHours: sql<number>`avg(extract(epoch from (${submissions.createdAt} - ${tasks.createdAt})) / 3600)::float`,
+          })
+          .from(tasks)
+          .innerJoin(submissions, eq(submissions.taskId, tasks.id))
+          .where(eq(submissions.developerId, user.id)),
+      ])
 
       for (const row of statsResult) {
         if (row.status === 'approved') {
@@ -112,14 +122,6 @@ export default async function DashboardPage() {
           devStats.totalEscrow += row.sumBudget ? Math.floor(row.sumBudget / 100) : 0
         }
       }
-
-      const devTurnaround = await db
-        .select({
-          avgHours: sql<number>`avg(extract(epoch from (${submissions.createdAt} - ${tasks.createdAt})) / 3600)::float`,
-        })
-        .from(tasks)
-        .innerJoin(submissions, eq(submissions.taskId, tasks.id))
-        .where(eq(submissions.developerId, user.id))
       avgTurnaroundHours = devTurnaround[0]?.avgHours ?? null
     }
   } catch (e) {

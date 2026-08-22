@@ -162,23 +162,25 @@ export async function claimTask(taskId: string) {
     throw new Error('Unauthorized: Only developers can claim tasks.')
   }
 
+  // These three reads are all independent of each other (none depend on
+  // another's result) — fetch concurrently instead of one at a time.
+  const [devProfile, taskResult, developer] = await Promise.all([
+    db.query.developers.findFirst({ where: eq(developers.userId, user.id) }),
+    getTaskById(taskId),
+    db.query.users.findFirst({ where: eq(users.id, user.id) }),
+  ])
+
   // Enforce GitHub account connection
-  const devProfile = await db.query.developers.findFirst({
-    where: eq(developers.userId, user.id)
-  })
   if (!devProfile || !devProfile.isGithubConnected) {
     throw new Error('GitHubConnectionRequired')
   }
 
   // Get task to check level requirements
-  const taskResult = await getTaskById(taskId)
   if (!taskResult) throw new Error('Task not found.')
-  
+
   if (taskResult.task.status !== 'open') {
     throw new Error('This task has already been claimed.')
   }
-
-  const developer = await db.query.users.findFirst({ where: eq(users.id, user.id) })
 
   // Perform atomic update to handle race conditions
   const updated = await db
@@ -243,13 +245,17 @@ export async function submitWork(prevState: SubmitWorkState | null, formData: Fo
     return { error: 'Invalid URL. Must start with https://' }
   }
 
-  const taskResult = await getTaskById(taskId)
+  // Independent of each other — fetch concurrently.
+  const [taskResult, devUsers] = await Promise.all([
+    getTaskById(taskId),
+    db.select({ name: users.name }).from(users).where(eq(users.id, user.id)).limit(1),
+  ])
   if (!taskResult) return { error: 'Task not found.' }
   if (taskResult.task.status !== 'claimed') return { error: 'Task is not in claimed state.' }
   if (taskResult.task.claimantId !== user.id) return { error: 'You are not the claimant.' }
 
   // Look up developer name for notification
-  const [devUser] = await db.select({ name: users.name }).from(users).where(eq(users.id, user.id)).limit(1)
+  const [devUser] = devUsers
 
   try {
     await db.transaction(async (tx) => {

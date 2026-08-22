@@ -125,17 +125,23 @@ export default async function ProfilePage() {
     shipActivities = rows.map((r) => ({ date: r.date, xp: 100 }))
     earned = rows.reduce((s, r) => s + Math.floor((r.budget || 0) / 100), 0)
   } else {
-    const rows = await db
-      .select({
-        id: tasks.id, title: tasks.title, budget: tasks.budget, tags: tasks.skillTags,
-        rating: submissions.rating, prUrl: submissions.githubLink, date: submissions.createdAt,
-        taskCreatedAt: tasks.createdAt, deadline: tasks.deadline
-      })
-      .from(submissions)
-      .innerJoin(tasks, eq(submissions.taskId, tasks.id))
-      .where(and(eq(submissions.developerId, dbUser.id), eq(submissions.status, 'approved')))
-      .orderBy(desc(submissions.createdAt))
-      .limit(30)
+    const [rows, totals] = await Promise.all([
+      db
+        .select({
+          id: tasks.id, title: tasks.title, budget: tasks.budget, tags: tasks.skillTags,
+          rating: submissions.rating, prUrl: submissions.githubLink, date: submissions.createdAt,
+          taskCreatedAt: tasks.createdAt, deadline: tasks.deadline
+        })
+        .from(submissions)
+        .innerJoin(tasks, eq(submissions.taskId, tasks.id))
+        .where(and(eq(submissions.developerId, dbUser.id), eq(submissions.status, 'approved')))
+        .orderBy(desc(submissions.createdAt))
+        .limit(30),
+      db
+        .select({ total: sql<number>`count(*)::int`, approved: sql<number>`count(*) filter (where ${submissions.status} = 'approved')::int` })
+        .from(submissions)
+        .where(eq(submissions.developerId, dbUser.id)),
+    ])
     shippedWork = rows.map((r) => ({ id: r.id, title: r.title, budget: Math.floor((r.budget || 0) / 100), tags: r.tags || [], rating: r.rating ?? null, prUrl: r.prUrl ?? null, date: r.date.toISOString() }))
     shipped = rows.length
     shipActivities = rows.map((r) => {
@@ -157,10 +163,6 @@ export default async function ProfilePage() {
     const ratings = rows.map((r) => r.rating).filter((r): r is number => typeof r === 'number')
     avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null
 
-    const totals = await db
-      .select({ total: sql<number>`count(*)::int`, approved: sql<number>`count(*) filter (where ${submissions.status} = 'approved')::int` })
-      .from(submissions)
-      .where(eq(submissions.developerId, dbUser.id))
     const t = totals[0]
     completionRate = t && t.total > 0 ? Math.round((t.approved / t.total) * 100) : null
   }

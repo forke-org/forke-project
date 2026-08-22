@@ -125,11 +125,14 @@ export default function BucketsPanel({ currentAdmin }: BucketsPanelProps) {
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Fetch configuration and files
+  // Fetch configuration and files — independent of each other, run concurrently.
   async function loadData() {
     setLoading(true)
     try {
-      const configRes = await getR2ConfigAction()
+      const [configRes, objectsRes] = await Promise.all([
+        getR2ConfigAction(),
+        listBucketObjectsAction(),
+      ])
       if (configRes.success && configRes.config) {
         setConfig({
           accessKeyId: configRes.config.accessKeyId,
@@ -142,7 +145,6 @@ export default function BucketsPanel({ currentAdmin }: BucketsPanelProps) {
         })
       }
 
-      const objectsRes = await listBucketObjectsAction()
       if (objectsRes.success && objectsRes.objects) {
         setObjects(objectsRes.objects)
       } else if (objectsRes.error) {
@@ -172,16 +174,11 @@ export default function BucketsPanel({ currentAdmin }: BucketsPanelProps) {
 
   // Master refresh function that reloads metrics immediately
   async function handleRefresh() {
-    await loadData()
-    await loadMetrics()
+    await Promise.all([loadData(), loadMetrics()])
   }
 
   useEffect(() => {
-    async function init() {
-      await loadData()
-      await loadMetrics()
-    }
-    init()
+    Promise.all([loadData(), loadMetrics()])
   }, [])
 
   useEffect(() => {

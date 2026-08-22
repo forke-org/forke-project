@@ -63,11 +63,15 @@ export default async function BlogPostPage({ params }: Params) {
   const post = await getPublishedBlogBySlug(slug)
   if (!post) notFound()
 
-  const viewCount = await getBlogViewCount(post.id)
+  // Independent of each other — fetch concurrently.
+  const [viewCount, publishedBlogs] = await Promise.all([
+    getBlogViewCount(post.id),
+    getPublishedBlogs(),
+  ])
 
   // Recent posts for the "You may also like these" section — exclude the
   // current post and cap at three (already ordered newest-first).
-  const related: RelatedCard[] = (await getPublishedBlogs())
+  const related: RelatedCard[] = publishedBlogs
     .filter((p) => p.slug !== post.slug)
     .slice(0, 3)
     .map((p) => ({

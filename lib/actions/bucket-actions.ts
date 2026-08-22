@@ -2,10 +2,9 @@
 
 import fs from 'fs'
 import path from 'path'
-import { S3Client, ListObjectsV2Command, DeleteObjectCommand, DeleteObjectsCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { isAdminAuthenticated, getCurrentAdmin } from '../admin-actions'
 import { logAudit } from './audit-actions'
-import { isR2Configured, uploadToR2 } from '../r2'
+import { isR2Configured, uploadToR2, listObjects, putObject, deleteObject, deleteObjects } from '../r2'
 import { revalidatePath } from 'next/cache'
 
 // Helper to check if admin is authenticated
@@ -153,27 +152,14 @@ export async function listBucketObjectsAction(): Promise<{ success: boolean; obj
 
   if (isR2Configured()) {
     try {
-      const s3Client = new S3Client({
-        region: 'auto',
-        endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-        credentials: {
-          accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY!,
-        },
-      })
+      const listResult = await listObjects()
 
-      const listResult = await s3Client.send(
-        new ListObjectsV2Command({
-          Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-        })
-      )
-
-      const basePublicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL!.endsWith('/') 
-        ? process.env.CLOUDFLARE_R2_PUBLIC_URL!.slice(0, -1) 
+      const basePublicUrl = process.env.CLOUDFLARE_R2_PUBLIC_URL!.endsWith('/')
+        ? process.env.CLOUDFLARE_R2_PUBLIC_URL!.slice(0, -1)
         : process.env.CLOUDFLARE_R2_PUBLIC_URL!
 
-      const objects: BucketObject[] = (listResult.Contents || []).map(o => {
-        const ext = o.Key?.split('.').pop()?.toLowerCase() || ''
+      const objects: BucketObject[] = listResult.map(o => {
+        const ext = o.key.split('.').pop()?.toLowerCase() || ''
         let contentType = 'application/octet-stream'
         if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg'].includes(ext)) {
           contentType = `image/${ext === 'jpg' ? 'jpeg' : ext}`
@@ -190,10 +176,10 @@ export async function listBucketObjectsAction(): Promise<{ success: boolean; obj
         }
 
         return {
-          key: o.Key || '',
-          size: o.Size || 0,
-          lastModified: o.LastModified ? o.LastModified.toISOString() : new Date().toISOString(),
-          url: `${basePublicUrl}/${o.Key}`,
+          key: o.key,
+          size: o.size,
+          lastModified: o.lastModified || new Date().toISOString(),
+          url: `${basePublicUrl}/${o.key}`,
           isLocal: false,
           contentType: contentType
         }
@@ -321,23 +307,7 @@ export async function createFolderAction(folderName: string, prefix: string) {
 
   try {
     if (isR2Configured()) {
-      const s3Client = new S3Client({
-        region: 'auto',
-        endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-        credentials: {
-          accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY!,
-        },
-      })
-
-      await s3Client.send(
-        new PutObjectCommand({
-          Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-          Key: key,
-          Body: Buffer.from(''),
-          ContentType: 'application/x-directory',
-        })
-      )
+      await putObject(key, Buffer.from(''), 'application/x-directory')
     } else {
       const localPath = path.resolve(process.cwd(), 'public', key)
       if (!fs.existsSync(localPath)) {
@@ -372,47 +342,17 @@ export async function deleteBucketObjectAction(key: string) {
 
   try {
     if (isR2Configured()) {
-      const s3Client = new S3Client({
-        region: 'auto',
-        endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-        credentials: {
-          accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY!,
-        },
-      })
-
       if (key.endsWith('/')) {
         // List and delete all nested objects matching the directory prefix
-        const listRes = await s3Client.send(
-          new ListObjectsV2Command({
-            Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-            Prefix: key,
-          })
-        )
-        const contents = listRes.Contents || []
-        const allKeysToDelete = contents.map(item => item.Key).filter(Boolean) as string[]
+        const contents = await listObjects(key)
+        const allKeysToDelete = contents.map(item => item.key)
         if (!allKeysToDelete.includes(key)) {
           allKeysToDelete.push(key)
         }
 
-        if (allKeysToDelete.length > 0) {
-          await s3Client.send(
-            new DeleteObjectsCommand({
-              Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-              Delete: {
-                Objects: allKeysToDelete.map(k => ({ Key: k })),
-                Quiet: true
-              }
-            })
-          )
-        }
+        await deleteObjects(allKeysToDelete)
       } else {
-        await s3Client.send(
-          new DeleteObjectCommand({
-            Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-            Key: key,
-          })
-        )
+        await deleteObject(key)
       }
     } else {
       const cleanKey = key.startsWith('/') ? key.slice(1) : key
@@ -456,28 +396,13 @@ export async function deleteMultipleBucketObjectsAction(keys: string[]) {
 
   try {
     if (isR2Configured()) {
-      const s3Client = new S3Client({
-        region: 'auto',
-        endpoint: process.env.CLOUDFLARE_R2_ENDPOINT,
-        credentials: {
-          accessKeyId: process.env.CLOUDFLARE_R2_ACCESS_KEY_ID!,
-          secretAccessKey: process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY!,
-        },
-      })
-
       const allKeysToDelete: string[] = []
       for (const key of keys) {
         if (key.endsWith('/')) {
           // List and delete all nested objects matching the directory prefix
-          const listRes = await s3Client.send(
-            new ListObjectsV2Command({
-              Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-              Prefix: key,
-            })
-          )
-          const contents = listRes.Contents || []
+          const contents = await listObjects(key)
           for (const item of contents) {
-            if (item.Key) allKeysToDelete.push(item.Key)
+            allKeysToDelete.push(item.key)
           }
           if (!allKeysToDelete.includes(key)) {
             allKeysToDelete.push(key)
@@ -487,17 +412,7 @@ export async function deleteMultipleBucketObjectsAction(keys: string[]) {
         }
       }
 
-      if (allKeysToDelete.length > 0) {
-        await s3Client.send(
-          new DeleteObjectsCommand({
-            Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
-            Delete: {
-              Objects: allKeysToDelete.map(k => ({ Key: k })),
-              Quiet: true
-            }
-          })
-        )
-      }
+      await deleteObjects(allKeysToDelete)
     } else {
       for (const key of keys) {
         const cleanKey = key.startsWith('/') ? key.slice(1) : key
