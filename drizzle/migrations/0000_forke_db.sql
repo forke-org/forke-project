@@ -373,4 +373,15 @@ ALTER TABLE "submissions" ADD CONSTRAINT "submissions_task_id_tasks_id_fk" FOREI
 ALTER TABLE "submissions" ADD CONSTRAINT "submissions_developer_id_users_id_fk" FOREIGN KEY ("developer_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_client_id_users_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tasks" ADD CONSTRAINT "tasks_claimant_id_users_id_fk" FOREIGN KEY ("claimant_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_sandbox_repo_id_sandbox_repos_id_fk" FOREIGN KEY ("sandbox_repo_id") REFERENCES "public"."sandbox_repos"("id") ON DELETE set null ON UPDATE no action;
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_sandbox_repo_id_sandbox_repos_id_fk" FOREIGN KEY ("sandbox_repo_id") REFERENCES "public"."sandbox_repos"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE TABLE "backup_runs" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"started_at" timestamp DEFAULT now() NOT NULL,
+	"finished_at" timestamp,
+	"status" text NOT NULL,
+	"tier" text NOT NULL,
+	"size_bytes" bigint,
+	"r2_key" text,
+	"triggered_by" text,
+	"error_message" text
+);

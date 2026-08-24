@@ -1264,6 +1264,94 @@ export async function sendDatabaseBackupNotification(
   }
 }
 
+const TIER_LABEL: Record<string, string> = {
+  daily: 'Daily',
+  weekly: 'Weekly',
+  monthly: 'Monthly',
+}
+
+function formatBackupSize(sizeBytes?: number): string {
+  if (!sizeBytes) return 'N/A'
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function buildBackupReportEmail(
+  downloadUrl: string,
+  expiryTime: string,
+  tier: string,
+  sizeBytes?: number,
+  maxWidth?: number
+): string {
+  const tierLabel = TIER_LABEL[tier] || tier
+  return emailShell({
+    maxWidth,
+    title: 'Forke — Database Backup',
+    preheader: `${tierLabel} production database backup is ready. Link expires in 12 hours.`,
+    banner: 'main-banner.png',
+    footerLabel: 'Automated Database Backup',
+    bodyHtml: `
+      ${heading('Database backup.', 'Ready.')}
+      ${p(`A ${tierLabel.toLowerCase()} PostgreSQL dump (${formatBackupSize(sizeBytes)}) of the production database completed and was stored on Cloudflare R2, retained per the backup rotation policy (7 daily / 4 weekly / 6 monthly).`)}
+      ${calloutBox(
+        '⚠️ Security Warning',
+        `This download link contains sensitive database information and will expire at <strong>${expiryTime}</strong> (in 12 hours). Do not share this email or link.`
+      )}
+      ${p('Click the button below to download the backup file:')}
+      ${buttonPrimary(downloadUrl, 'Download backup')}
+      ${fallbackLink(downloadUrl)}
+    `,
+  })
+}
+
+/**
+ * Dispatches automated production backup-run notification emails to all active admins.
+ */
+export async function sendBackupReportNotification(
+  downloadUrl: string,
+  expiryTime: string,
+  tier: string,
+  sizeBytes?: number
+): Promise<boolean> {
+  await syncAdminsToResend()
+
+  try {
+    const { db } = await import('./db')
+    const { admins } = await import('./db/schema')
+    const { eq } = await import('drizzle-orm')
+
+    const activeAdmins = await db
+      .select({ email: admins.email, name: admins.name })
+      .from(admins)
+      .where(eq(admins.isDisabled, false))
+
+    if (activeAdmins.length === 0) {
+      console.warn('No active admins found to send backup report notification.')
+      return false
+    }
+
+    const emailBody = buildBackupReportEmail(downloadUrl, expiryTime, tier, sizeBytes)
+    const tierLabel = TIER_LABEL[tier] || tier
+
+    let allSent = true
+    for (const admin of activeAdmins) {
+      const success = await sendResendEmail(
+        admin.email,
+        `Forke: ${tierLabel} database backup is ready`,
+        emailBody,
+        'database backup',
+        'Forke Database <db@forke.space>'
+      )
+      if (!success) allSent = false
+    }
+
+    return allSent
+  } catch (err) {
+    console.error('Failed to send backup report notifications:', err)
+    return false
+  }
+}
+
 export function buildBackupFailureEmail(tier: string, errorMessage: string, maxWidth?: number): string {
   return emailShell({
     maxWidth,

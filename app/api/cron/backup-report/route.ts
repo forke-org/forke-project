@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { backupRuns } from '@/lib/db/schema'
 import { getPresignedDownloadUrl } from '@/lib/r2'
-import { sendDatabaseBackupNotification, sendBackupFailureAlert } from '@/lib/email'
+import { sendBackupReportNotification, sendBackupFailureAlert } from '@/lib/email'
 import { logAudit } from '@/lib/actions/audit-actions'
 
 export const dynamic = 'force-dynamic'
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
           minute: '2-digit',
           hour12: true,
         }) + ' IST'
-      await sendDatabaseBackupNotification(downloadUrl, expiryTimeIST)
+      await sendBackupReportNotification(downloadUrl, expiryTimeIST, tier, sizeBytes)
     } else if (status === 'failed') {
       await sendBackupFailureAlert(tier, errorMessage || 'Unknown error')
     }

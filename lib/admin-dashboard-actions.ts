@@ -772,7 +772,7 @@ export async function getTrackerData(days = 30): Promise<{ success: boolean; dat
           COALESCE(v.conversions, 0)::int AS conversions
         FROM clicks_by_country c
         FULL OUTER JOIN conv_totals v ON v.country = c.country
-        ORDER BY clicks DESC LIMIT 20
+        ORDER BY clicks DESC
       `),
       db.execute(sql`
         SELECT source, landing_path, referrer, country, created_at
