@@ -132,7 +132,7 @@ export default function DatabaseOverviewPanel() {
             <Database className="w-3.5 h-3.5 text-accent/60" />
           </div>
           <div className="text-lg font-mono font-bold text-white">{data?.dbSize || 'N/A'}</div>
-          <div className="text-[9px] text-white/30 leading-snug">Actual volume on AWS disk.</div>
+          <div className="text-[9px] text-white/30 leading-snug">Actual volume on disk.</div>
         </div>
 
         {/* Card 3 */}
@@ -171,7 +171,7 @@ export default function DatabaseOverviewPanel() {
       <div className="bg-[#0b0b0e] border border-white/[0.06] rounded-xl p-5 space-y-4 font-mono text-xs">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="space-y-1">
-            <span className="text-[10px] text-white/40 uppercase font-sans font-semibold tracking-wider block">AWS RDS Endpoint</span>
+            <span className="text-[10px] text-white/40 uppercase font-sans font-semibold tracking-wider block">Database Endpoint</span>
             <div className="flex items-center gap-2">
               <span className="text-white/80 truncate block max-w-[200px]" title={data?.host}>{data?.host || 'N/A'}</span>
               <button 

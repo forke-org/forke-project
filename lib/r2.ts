@@ -122,10 +122,14 @@ export async function listObjects(prefix?: string): Promise<R2ObjectSummary[]> {
 export async function putObject(key: string, body: Buffer | string, contentType: string): Promise<void> {
   const creds = getR2Credentials()
   const client = r2Client(creds)
+  const bodyBuffer = typeof body === 'string' ? Buffer.from(body, 'utf-8') : body
   const res = await client.fetch(objectUrl(creds.endpoint, creds.bucketName, key), {
     method: 'PUT',
-    body: body as BodyInit,
-    headers: { 'Content-Type': contentType },
+    body: bodyBuffer as BodyInit,
+    headers: {
+      'Content-Type': contentType,
+      'Content-Length': String(bodyBuffer.length),
+    },
   })
   if (!res.ok) {
     throw new Error(`R2 upload failed: ${res.status} ${await res.text()}`)
@@ -191,6 +195,7 @@ export async function uploadToR2(
     body: fileBuffer as BodyInit,
     headers: {
       'Content-Type': contentType,
+      'Content-Length': String(fileBuffer.length),
       'Cache-Control': 'public, max-age=31536000, immutable',
     },
   })

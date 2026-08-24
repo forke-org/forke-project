@@ -6,14 +6,15 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set')
 }
 
-// Connection pool tuning. RDS db.t3.micro allows ~35 total connections, so we
-// cap each serverless instance well below that to avoid "too many clients".
+// Connection pool tuning. PgBouncer's default_pool_size is 50 against Postgres'
+// max_connections of 200, so we cap each serverless instance well below that to
+// avoid exhausting the pool under concurrent cold starts.
 // This only changes connection management — schema, queries and table views
 // are completely unaffected.
 const connectionOptions: postgres.Options<{}> = {
   max: 10,            // max connections held by this client
-  idle_timeout: 20,   // close idle connections after 20s (frees RDS slots)
-  connect_timeout: 10, // fail fast if RDS can't be reached in 10s
+  idle_timeout: 20,   // close idle connections after 20s (frees pool slots)
+  connect_timeout: 10, // fail fast if the DB can't be reached in 10s
   prepare: false,      // disable prepared statements for pgBouncer compatibility
 }
 

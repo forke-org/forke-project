@@ -1263,3 +1263,61 @@ export async function sendDatabaseBackupNotification(
     return false
   }
 }
+
+export function buildBackupFailureEmail(tier: string, errorMessage: string, maxWidth?: number): string {
+  return emailShell({
+    maxWidth,
+    title: 'Forke — Backup Failed',
+    preheader: `The ${tier} production database backup failed.`,
+    banner: 'main-banner.png',
+    footerLabel: 'Automated Database Backup',
+    bodyHtml: `
+      ${heading('Backup failed.', 'Action needed.')}
+      ${p(`The scheduled <strong>${tier}</strong> backup of the production database did not complete successfully.`)}
+      ${calloutBox('🚨 Error', errorMessage || 'Unknown error — check the OCI host logs.')}
+      ${p('No new backup was stored for this run. If this keeps happening, the retention chain will develop a gap.')}
+    `,
+  })
+}
+
+/**
+ * Alerts all active admins that a scheduled production database backup failed.
+ */
+export async function sendBackupFailureAlert(tier: string, errorMessage: string): Promise<boolean> {
+  await syncAdminsToResend()
+
+  try {
+    const { db } = await import('./db')
+    const { admins } = await import('./db/schema')
+    const { eq } = await import('drizzle-orm')
+
+    const activeAdmins = await db
+      .select({ email: admins.email, name: admins.name })
+      .from(admins)
+      .where(eq(admins.isDisabled, false))
+
+    if (activeAdmins.length === 0) {
+      console.warn('No active admins found to send backup failure alert.')
+      return false
+    }
+
+    const emailBody = buildBackupFailureEmail(tier, errorMessage)
+
+    let allSent = true
+    for (const admin of activeAdmins) {
+      const success = await sendResendEmail(
+        admin.email,
+        `Forke: ${tier} database backup FAILED`,
+        emailBody,
+        'database backup failure',
+        'Forke Database <db@forke.space>'
+      )
+      if (!success) allSent = false
+    }
+
+    return allSent
+  } catch (err) {
+    console.error('Failed to send backup failure alerts:', err)
+    return false
+  }
+}

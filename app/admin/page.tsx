@@ -71,7 +71,8 @@ import {
   PenSquare,
   Code,
   HardDrive,
-  LineChart
+  LineChart,
+  Archive
 } from 'lucide-react'
 import DatabaseConsole from '@/components/admin/DatabaseConsole'
 import BlogPanel from '@/components/admin/BlogPanel'
@@ -80,6 +81,7 @@ import DatabaseMonitoringPanel from '@/components/admin/DatabaseMonitoringPanel'
 import ActivityFeedPanel from '@/components/admin/ActivityFeedPanel'
 import BucketsPanel from '@/components/admin/BucketsPanel'
 import TrackerPanel from '@/components/admin/TrackerPanel'
+import BackupsPanel from '@/components/admin/BackupsPanel'
 import { getActivityLogLiveStatusAction } from '@/lib/actions/audit-actions'
 
 
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
   
   // Navigation states
   const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'owner-approval' | 'developer-ban' | 'enquiries' | 'admins' | 'subscribers' | 'tracker' | 'blogs' | 'activity' | 'database' | 'buckets' | 'db-overview' | 'db-monitoring' | 'sql-editor' | null
+    'dashboard' | 'owner-approval' | 'developer-ban' | 'enquiries' | 'admins' | 'subscribers' | 'tracker' | 'blogs' | 'activity' | 'database' | 'buckets' | 'db-overview' | 'db-monitoring' | 'sql-editor' | 'backups' | null
   >(null)
   const [usersMenuOpen, setUsersMenuOpen] = useState(true)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
@@ -145,7 +147,7 @@ export default function AdminDashboard() {
       const tab = params.get('tab')
       const validTabs = [
         'dashboard', 'owner-approval', 'developer-ban', 'enquiries',
-        'admins', 'subscribers', 'tracker', 'blogs', 'activity', 'database', 'db-overview', 'db-monitoring', 'sql-editor', 'buckets'
+        'admins', 'subscribers', 'tracker', 'blogs', 'activity', 'database', 'db-overview', 'db-monitoring', 'sql-editor', 'buckets', 'backups'
       ]
       if (tab && validTabs.includes(tab)) {
         setActiveTab(tab as any)
@@ -1333,6 +1335,27 @@ export default function AdminDashboard() {
               </div>
             </button>
 
+            {/* Backups */}
+            <button
+              onClick={() => selectTab('backups')}
+              className={cn(
+                "w-full flex items-center justify-between px-2.5 py-2 rounded-lg transition-colors text-[13px] font-medium text-left relative",
+                sidebarCollapsed && "lg:justify-center lg:px-0",
+                activeTab === 'backups'
+                  ? 'bg-white/[0.05] text-white'
+                  : 'text-[var(--color-text-muted)] hover:bg-white/[0.03] hover:text-white'
+              )}
+              title={sidebarCollapsed ? "Backups" : undefined}
+            >
+              <div className="flex items-center gap-2.5">
+                <Archive className={cn(
+                  `w-[18px] h-[18px] shrink-0 transition-colors`,
+                  activeTab === 'backups' ? 'text-accent' : 'text-[var(--color-text-muted)]'
+                )} />
+                {!sidebarCollapsed && <span className="animate-in fade-in duration-200">Backups</span>}
+              </div>
+            </button>
+
             {/* SQL Editor */}
             {currentAdmin && (
               <button
@@ -2508,6 +2531,13 @@ export default function AdminDashboard() {
           {activeTab === 'buckets' && (
             <div className="flex-grow min-h-0 h-full flex flex-col">
               <BucketsPanel currentAdmin={currentAdmin} />
+            </div>
+          )}
+
+          {/* ==================== BACKUPS PANEL ==================== */}
+          {activeTab === 'backups' && (
+            <div className="flex-grow min-h-0 h-full flex flex-col">
+              <BackupsPanel />
             </div>
           )}
 

@@ -118,7 +118,7 @@ export default function PrivacyPage() {
               <strong>Authentication & Session Management (NextAuth):</strong> Handles secure credentials-based login as well as third-party OAuth authentication via GitHub and Google.
             </li>
             <li>
-              <strong>Database Infrastructure (AWS RDS PostgreSQL & Drizzle ORM):</strong> Stores user profiles, task details, active claims, and transaction histories securely on Amazon Web Services (AWS) database instances.
+              <strong>Database Infrastructure (PostgreSQL & Drizzle ORM):</strong> Stores user profiles, task details, active claims, and transaction histories securely on our cloud-hosted database infrastructure.
             </li>
             <li>
               <strong>Payment Gateway & Settlements (Razorpay):</strong> Processes task bounty deposits, payouts, and UPI settlements. We do not store full credit card numbers or banking secrets on our servers.
@@ -136,7 +136,7 @@ export default function PrivacyPage() {
             Storage, Security & Location
           </h2>
           <p className="text-sm text-white/50 leading-relaxed">
-            Our primary databases are hosted securely on AWS cloud infrastructure located in <strong>India</strong> to ensure compliance with local server-residency requirements under the DPDP Act 2023. 
+            Our primary databases are hosted securely on cloud infrastructure located in <strong>India</strong> to ensure compliance with local server-residency requirements under the DPDP Act 2023.
           </p>
           <p className="text-sm text-white/50 leading-relaxed">
             We implement SSL/TLS encryption for all data in transit, restrict database access to authenticated administrators, and run automated security scanners. However, no internet service is 100% secure, and you are responsible for maintaining the privacy of your account access credentials.

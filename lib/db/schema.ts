@@ -3,6 +3,7 @@ import {
   uuid,
   text,
   integer,
+  bigint,
   timestamp,
   pgEnum,
   boolean,
@@ -225,6 +226,19 @@ export const adminAuditLog = pgTable('admin_audit_log', {
   target: text('target'),                          // human-readable subject (email / name / table)
   metadata: jsonb('metadata'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+// Log of every automated/manual production database backup run (OCI cron + admin "Run now").
+export const backupRuns = pgTable('backup_runs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  finishedAt: timestamp('finished_at'),
+  status: text('status').notNull(),              // 'success' | 'failed'
+  tier: text('tier').notNull(),                   // 'daily' | 'weekly' | 'monthly' | 'manual'
+  sizeBytes: bigint('size_bytes', { mode: 'number' }),
+  r2Key: text('r2_key'),
+  triggeredBy: text('triggered_by'),               // 'cron' | admin email for manual runs
+  errorMessage: text('error_message'),
 })
 
 export const developers = pgTable('developers', {
